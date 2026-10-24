@@ -1,0 +1,8 @@
+# akhir baris konsisten di semua OS
+* text=auto eol=lf
+*.bat text eol=crlf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.mp3 binary
+*.mp4 binary
