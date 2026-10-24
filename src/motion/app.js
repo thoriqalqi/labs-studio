@@ -1,4 +1,5 @@
 // Editor motion graphics: kanvas + inspector + timeline layer.
+import { t as tr, langToggle } from '../core/i18n.js';
 import { createStore } from '../store.js';
 import { createAudio } from '../audio.js';
 import { exportVideo, savePoster } from '../core/exportVideo.js';
@@ -392,7 +393,7 @@ const actions = {
     if (!selected()) return;
     store.mutate((d) => {
       const l = selected(d);
-      const c = { ...structuredClone(l), id: newId('l'), name: `${l.name} salinan` };
+      const c = { ...structuredClone(l), id: newId('l'), name: `${l.name} ${tr('salinan')}` };
       d.layers.splice(d.layers.indexOf(l), 0, c);
       store.setSel({ kind: 'layer', id: c.id });
     });
@@ -761,3 +762,5 @@ function loop() {
 })();
 
 window.motion = { store, seek, get t() { return t; } };
+
+document.getElementById('lang-slot')?.replaceWith(langToggle());

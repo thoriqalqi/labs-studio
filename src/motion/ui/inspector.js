@@ -42,7 +42,7 @@ export function createInspector(el, { store, getTime, seek, upload, actions }) {
           <label class="f"><span>FPS</span><select data-f="comp:fps">${options({ 24: '24', 25: '25', 30: '30', 60: '60' }, c.fps)}</select></label>
           <label class="f"><span>Durasi (dtk)</span><input type="number" data-f="comp:duration" value="${c.duration}" min="0.5" step="0.5"></label>
         </div>
-        <label class="f"><span>Warna dasar</span><input type="color" data-f="comp:background" value="${c.background}"></label>
+        <label class="f"><span>Warna latar</span><input type="color" data-f="comp:background" value="${c.background}"></label>
       </section>
       <div class="hint"><b>Cara pakai</b><br>
         Tambah layer dari panel kiri, atau seret file gambar/audio/video ke jendela.<br>

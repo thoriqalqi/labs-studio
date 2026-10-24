@@ -60,7 +60,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
           <button type="button" class="ico" data-eye="${l.id}" aria-label="${l.hidden ? 'Tampilkan' : 'Sembunyikan'} layer" title="Tampil/sembunyi">${l.hidden ? '◌' : '●'}</button>
           <button type="button" class="ico" data-lock="${l.id}" aria-label="${l.locked ? 'Buka kunci' : 'Kunci'} layer" title="Kunci">${l.locked ? '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>' : '·'}</button>
           <span class="ty">${def?.icon || '?'}</span>
-          <span class="nm">${esc(l.name)}</span>
+          <span class="nm" translate="no">${esc(l.name)}</span>
         </div>
       </div>`;
       const w = Math.max(6, l.dur * pps);

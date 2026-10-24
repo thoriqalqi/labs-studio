@@ -70,7 +70,7 @@ export function openVoiceDialog({ mode = 'single', text = '', info = '' } = {}) 
       </section>
       <section class="vo-main">
         <div class="vo-row vo-list">
-          <label class="f grow"><span>Suara</span><select name="voice"><option>Memuat suara…</option></select></label>
+          <label class="f grow"><span data-en="Voice">Suara</span><select name="voice"><option>Memuat suara…</option></select></label>
           <button type="button" data-act="preview-voice" title="Dengar contoh suara" aria-label="Dengar contoh suara">▶</button>
         </div>
         <div class="vo-manual" hidden>

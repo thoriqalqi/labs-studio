@@ -6,7 +6,7 @@ A local, lightweight **After Effects-style motion studio** that runs on your own
 
 Layers, keyframes, easing, text animation, 3D scenes, voice over, sound effects, and a timeline, all in the browser, with no cloud render queue. New layer types, templates, and animation presets are single files that register themselves, so "add a progress bar layer I can animate" is a normal request, not a refactor.
 
-> The UI is currently in Indonesian. English UI is on the roadmap; contributions are welcome.
+> The UI comes in **English and Indonesian**. It follows your browser language, and the **EN / ID** button in the top bar switches it. The chibi episode editor is Indonesian-only.
 
 ## Features
 
@@ -102,9 +102,9 @@ Rendering, exporting and templates run in the browser, so keep a Labs Studio tab
 | `src/core/bridge.js` | In-browser bridge the MCP server uses for rendering/export |
 | `motion/`, `episodes/`, `media/`, `posters/`, `output/` | Your data (created on first use, git-ignored) |
 
-## Roadmap
+## Contributing
 
-- English UI.
+Ideas and pull requests are welcome: new layer types, templates, presets, translations. The fastest route is the Claude Code plugin's `/labs-studio:new-layer` and `/labs-studio:new-template` commands. UI text lives in Indonesian in the code, with English in [`src/core/i18n-en.js`](src/core/i18n-en.js).
 
 ## License
 

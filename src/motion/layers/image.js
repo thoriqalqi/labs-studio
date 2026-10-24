@@ -1,3 +1,4 @@
+import { t } from '../../core/i18n.js';
 // Gambar dari file (png/jpg/webp/svg). Tinggi mengikuti rasio gambar.
 export default {
   type: 'image',
@@ -28,7 +29,7 @@ export default {
       ctx.font = '600 28px "Plus Jakarta Sans"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(p.url ? 'Memuat gambar…' : 'Pilih gambar di inspector', 0, 0);
+      ctx.fillText(t(p.url ? 'Memuat gambar…' : 'Pilih gambar di inspector'), 0, 0);
       return;
     }
     if (p.radius > 0) {

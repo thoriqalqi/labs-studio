@@ -1,4 +1,5 @@
 // Beranda Labs Studio: daftar proyek, buat dari template, ganti nama/duplikat/hapus, panduan vibe coding.
+import { t as tr, langToggle } from '../core/i18n.js';
 import { TEMPLATES } from '../templates/index.js';
 import { SIZES } from '../motion/doc.js';
 import { LAYER_TYPES } from '../motion/registry.js';
@@ -40,7 +41,7 @@ function renderProjects() {
         <span class="len">${dur(p.duration || 0)}</span>
       </div>
       <div class="card-body">
-        <a class="title" href="${openUrl(p)}">${esc(p.name)}</a>
+        <a class="title" href="${openUrl(p)}" translate="no">${esc(p.name)}</a>
         <div class="card-meta"><span class="kind">${KIND[p.kind] || p.kind}</span><span>${esc(p.size)}</span><span>${ago(p.updated)}</span></div>
         <div class="card-acts">
           <button type="button" data-act="rename">Ganti nama</button>
@@ -129,8 +130,8 @@ $('projects').addEventListener('click', async (e) => {
   if (b.dataset.act === 'dup') {
     const d = await getDoc(p);
     d.id = col === 'episodes' ? nextEpisodeId() : `m${Date.now().toString(36)}`;
-    if (col === 'episodes') d.title = `${d.title} (salinan)`;
-    else d.name = `${d.name} (salinan)`;
+    if (col === 'episodes') d.title = `${d.title} (${tr('salinan')})`;
+    else d.name = `${d.name} (${tr('salinan')})`;
     await putDoc(col, d);
     load();
   }
@@ -199,3 +200,5 @@ load();
 
 // proyek dibuat/diubah dari luar (MCP) → daftar diperbarui
 import.meta.hot?.on('labs:doc-changed', () => load());
+
+document.getElementById('lang-slot')?.replaceWith(langToggle());

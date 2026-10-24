@@ -1,5 +1,6 @@
 // Membuat dokumen komposisi & layer baru.
 import { getLayerDef } from './registry.js';
+import { t } from '../core/i18n.js';
 
 let uid = 0;
 export const newId = (p) => `${p}${Date.now().toString(36)}${(uid++).toString(36)}`;
@@ -28,16 +29,19 @@ export function newMotionDoc({ id, name, size = 'landscape', fps = 30, duration 
 
 export function newLayer(type, comp, { name, start = 0, dur, props = {}, keys, anim } = {}) {
   const def = getLayerDef(type);
+  // teks bawaan jenis layer (mis. "Teks *baru*") & teks rakitan/template ikut bahasa UI
+  const text = {};
+  for (const [k, v] of Object.entries({ ...def?.defaults, ...props })) if (typeof v === 'string' && t(v) !== v) text[k] = t(v);
   return {
     id: newId('l'),
     type,
-    name: name || def?.name || type,
+    name: t(name || def?.name || type),
     start,
     dur: dur ?? comp.duration - start,
     offset: 0,
     hidden: false,
     locked: false,
-    props: { x: comp.width / 2, y: comp.height / 2, ...props },
+    props: { x: comp.width / 2, y: comp.height / 2, ...props, ...text },
     keys: keys || {},
     anim: anim || { in: { preset: type === 'text' ? 'fadeUp' : 'none', dur: 0.6 }, out: { preset: 'none', dur: 0.4 } }
   };

@@ -4,6 +4,8 @@
 
 Studio animasi lokal, semacam After Effects versi ringan, yang berjalan di komputer sendiri dan mengekspor langsung ke MP4. Dibuat untuk dikembangkan terus dengan vibe coding lewat Claude Code (lihat `CLAUDE.md`).
 
+UI tersedia dalam **bahasa Indonesia dan Inggris**. Bahasanya otomatis mengikuti bahasa browser, dan bisa diganti lewat tombol **EN / ID** di bilah atas. Editor episode chibi hanya berbahasa Indonesia.
+
 ## Yang dibutuhkan
 
 - **Node.js 18+**

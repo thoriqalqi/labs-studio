@@ -112,6 +112,14 @@ Template `kind: 'chibi'` membuat episode chibi (lihat `episode-chibi.js`).
 - UI: `src/core/voiceover.js` (`openVoiceDialog`, `generateVoice`). Dipakai di editor motion (layer audio) dan editor chibi (`src/ui/voiceScenes.js`: VO per adegan dari subtitle + menyamakan durasi adegan).
 - Membuat suara memakai kuota karakter berbayar milik pengguna: selalu tampilkan jumlah karakter dan minta konfirmasi sebelum membuat banyak sekaligus.
 
+## Bahasa UI (Indonesia / Inggris)
+
+- Teks UI di kode tetap ditulis dalam bahasa Indonesia. Padanan Inggrisnya ada di `src/core/i18n-en.js` (`WORDS` untuk teks persis, `buildPatterns` untuk teks berisi angka/nama). **Setiap teks UI baru wajib ditambahkan ke kamus itu.**
+- `src/core/i18n.js` menerjemahkan DOM otomatis (teks + `title`/`placeholder`/`aria-label`) setiap kali UI digambar ulang, di beranda dan editor motion. Bahasa awal mengikuti browser; tombol EN/ID dari `langToggle()`.
+- Isi milik pengguna (nama layer/proyek, path) diberi `translate="no"`. Kata yang artinya bergantung konteks: `<span data-en="Voice">Suara</span>`.
+- Teks yang digambar ke canvas atau disimpan ke dokumen memakai `t()` (nama & teks bawaan layer baru sudah diterjemahkan di `newLayer`).
+- Editor episode chibi tidak memuat i18n (tetap bahasa Indonesia).
+
 ## Konvensi
 
 - UI memakai `src/styles.css`: token di `:root` (latar hitam-indigo + pendar violet "liquid gradient", panel & kartu kaca, garis hairline, font Geist + Geist Mono, tombol utama putih). Desain harus bersih: tanpa emoji dekoratif, tanpa teks bergradien, tanpa bayangan tebal; label kecil memakai `var(--mono)` huruf kapital. CSS khusus motion ada di `src/motion/motion.css`, beranda di `src/home/home.css`.

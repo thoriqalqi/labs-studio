@@ -1,3 +1,5 @@
+import { t } from '../../core/i18n.js';
+
 // Klip video (mp4/webm; format lain dikonversi otomatis saat diimpor).
 // Gambarnya saja — suaranya jadi layer Audio terpisah saat diimpor, jadi bisa diatur volumenya sendiri.
 export default {
@@ -31,7 +33,7 @@ export default {
       ctx.font = '500 28px "Geist", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(p.url ? 'Memuat video…' : 'Pilih file video di inspector', 0, 0);
+      ctx.fillText(t(p.url ? 'Memuat video…' : 'Pilih file video di inspector'), 0, 0);
       return;
     }
     env.assets.syncVideo(e, (p.in || 0) + env.contentT * (p.speed || 1));

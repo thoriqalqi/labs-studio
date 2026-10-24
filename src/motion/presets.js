@@ -15,7 +15,7 @@ export const PRESETS = {
   pop: { label: 'Pop (membal)', apply: (k, m) => { m.opacity *= Math.min(1, k * 2.5); m.scale *= Math.max(0, 0.4 + 0.6 * backOut(k)); } },
   zoom: { label: 'Zoom mendekat', apply: (k, m) => { m.opacity *= k; m.scale *= 1.35 - 0.35 * k; } },
   blur: { label: 'Fokus dari blur', apply: (k, m) => { m.opacity *= k; m.blur += (1 - k) * 24; } },
-  spin: { label: 'Putar', apply: (k, m) => { m.opacity *= k; m.rotation -= (1 - k) * 120; m.scale *= 0.3 + 0.7 * k; } },
+  spin: { label: 'Putar (spin)', apply: (k, m) => { m.opacity *= k; m.rotation -= (1 - k) * 120; m.scale *= 0.3 + 0.7 * k; } },
   // transisi "mengalir": masuk dari bawah sambil menajam, keluar naik sambil memudar & blur
   flowIn: { label: 'Mengalir masuk (naik + tajam)', apply: (k, m) => { m.opacity *= k; m.dy += (1 - k) * 46; m.blur += (1 - k) * 10; } },
   flowOut: { label: 'Mengalir keluar (naik + blur)', apply: (k, m) => { m.opacity *= k; m.dy -= (1 - k) * 46; m.blur += (1 - k) * 10; } },

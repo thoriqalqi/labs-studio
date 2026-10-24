@@ -244,3 +244,7 @@ dialog p { margin: 0; white-space: normal; }
   body { grid-template-columns: 220px minmax(0, 1fr) 280px; }
   .topbar { overflow-x: auto; }
 }
+
+/* ---------- tombol ganti bahasa (ID / EN) ---------- */
+.lang-toggle { height: 30px; min-width: 38px; padding: 0 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--muted); }
+.lang-toggle:hover { color: var(--text); }
