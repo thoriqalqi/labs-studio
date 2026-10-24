@@ -53,6 +53,34 @@ Open Claude Code in this folder and ask in plain language, for example:
 
 Rendering is a pure function of `(document, time)`, so seeking and frame-by-frame export always match the preview.
 
+## Let Claude drive the studio (MCP)
+
+Labs Studio ships an [MCP](https://modelcontextprotocol.io) server (`mcp/labs-studio-mcp.js`, no extra dependencies) so Claude can edit your videos directly, and **look at the result** before telling you it's done.
+
+| Tool | What it does |
+|---|---|
+| `studio_status`, `start_studio` | Check or start the local server and open the studio |
+| `list_projects`, `list_templates`, `create_project`, `get_project` | Browse and create projects |
+| `list_layer_types` | Layer types with their properties, animation presets, easings |
+| `add_layer`, `update_layer`, `set_keyframes`, `move_layer`, `remove_layer`, `update_composition` | Edit the composition |
+| `render_frames` | Render one frame or a labelled contact sheet and return it as an image |
+| `export_video`, `export_audio` | Export MP4 / MP3 + WAV to `output/` |
+| `list_voices`, `generate_voice` | ElevenLabs voice over (uses your paid quota, so Claude asks first) |
+
+**Claude Code:** open Claude Code in this folder. The bundled [`.mcp.json`](.mcp.json) registers the server, and Claude Code asks you to approve it once. From another folder:
+
+```bash
+claude mcp add labs-studio -- node /path/to/labs-studio/mcp/labs-studio-mcp.js
+```
+
+**Claude Desktop and other MCP clients:** add this to the client's MCP config:
+
+```json
+{ "mcpServers": { "labs-studio": { "command": "node", "args": ["/path/to/labs-studio/mcp/labs-studio-mcp.js"] } } }
+```
+
+Rendering, exporting and templates run in the browser, so keep a Labs Studio tab open (`start_studio` can open one). If the project is open in the editor, Claude's changes show up live and can be undone with Ctrl+Z. Set `LABS_STUDIO_URL` if the studio runs somewhere other than `http://localhost:5173`. The server speaks both the current MCP revision (2026-07-28) and the older `initialize`-based ones.
+
 ## Project layout
 
 | Path | What |
@@ -61,13 +89,13 @@ Rendering is a pure function of `(document, time)`, so seeking and frame-by-fram
 | `motion.html`, `src/motion/` | Motion editor (engine, layers, UI) |
 | `chibi.html`, `src/main.js`, `src/ui/` | Chibi episode editor (script → scenes with a 3D character) |
 | `src/templates/` | Project templates |
-| `vite.config.js` | Local server: save/load, uploads, ElevenLabs proxy, ffmpeg export |
+| `vite.config.js` | Local server: save/load, uploads, ElevenLabs proxy, ffmpeg export, browser bridge |
+| `mcp/`, `src/core/bridge.js` | MCP server and the in-browser bridge it uses for rendering/export |
 | `motion/`, `episodes/`, `media/`, `posters/`, `output/` | Your data (created on first use, git-ignored) |
 
 ## Roadmap
 
-- MCP server so Claude (Code or Desktop) can open projects, edit layers and keyframes, **render a frame to look at it**, and export.
-- Claude Code plugin bundling that MCP server with skills and slash commands.
+- Claude Code plugin bundling the MCP server with skills and slash commands.
 - English UI.
 
 ## License

@@ -11,6 +11,8 @@ import { createInspector } from './ui/inspector.js';
 import { ask } from '../core/dialog.js';
 import { openVoiceDialog } from '../core/voiceover.js';
 import { createTimeline } from './ui/timeline.js';
+import { audioTimeline as buildAudioTimeline } from './audioTimeline.js';
+import '../core/bridge.js';
 
 const params = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
@@ -33,23 +35,7 @@ const doc = () => store.doc;
 const status = (m) => { $('status').textContent = m; };
 
 // ---------- audio: layer audio → bentuk timeline yang dipakai audio.js ----------
-function audioTimeline() {
-  const d = doc();
-  const list = d.layers
-    .filter((l) => l.type === 'audio' && l.props?.url && !l.hidden)
-    .map((l) => {
-      const p = { ...getLayerDef('audio').defaults, ...l.props };
-      return { id: l.id, url: p.url, start: l.start, in: p.in, out: p.in + l.dur * p.speed, speed: p.speed, volume: p.volume / 100, dur: l.dur, end: l.start + l.dur, track: 0 };
-    });
-  // layer efek suara → cue sintetis (sama dengan SFX di editor chibi)
-  const cues = d.layers
-    .filter((l) => l.type === 'sfx' && !l.hidden)
-    .map((l) => {
-      const p = { ...getLayerDef('sfx').defaults, ...l.props };
-      return { name: p.sound, time: l.start, count: Math.max(1, Math.round(p.count)), length: l.dur, volume: p.volume / 100 };
-    });
-  return { cues, audio: list, total: d.comp.duration, sfxVolume: 1, sfxMuted: false, ep: {} };
-}
+const audioTimeline = () => buildAudioTimeline(doc());
 
 // ---------- gambar ----------
 // zoom tampilan kanvas (tidak mengubah dokumen). 0 = pas dengan layar
@@ -708,6 +694,21 @@ store.on((kind) => {
   $('undo').disabled = !store.canUndo;
   $('redo').disabled = !store.canRedo;
 });
+// proyek diubah dari luar editor (MCP/Claude) → muat versi terbaru lewat mutate, jadi bisa di-undo
+import.meta.hot?.on('labs:doc-changed', async ({ col, id }) => {
+  if (col !== 'motion' || !doc() || id !== doc().id || busy) return;
+  const fresh = await (await fetch(`/api/docs/motion/${encodeURIComponent(id)}`)).json();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  if (same(fresh.layers, doc().layers) && same(fresh.comp, doc().comp) && fresh.name === doc().name) return;
+  clearTimeout(saveTimer); // perubahan dari luar menang atas simpanan lokal yang belum terkirim
+  store.mutate((d) => {
+    for (const k of Object.keys(d)) delete d[k];
+    Object.assign(d, fresh);
+  });
+  t = clamp(t, 0, doc().comp.duration);
+  status('Proyek diperbarui dari luar editor · Ctrl+Z untuk membatalkan');
+});
+
 $('undo').onclick = () => store.undo();
 $('redo').onclick = () => store.redo();
 setAssetListener(() => { dirty = true; });

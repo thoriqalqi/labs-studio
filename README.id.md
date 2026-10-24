@@ -57,6 +57,30 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 
 **Ekspor:** MP4 (`output/<id>.mp4`), audio saja (MP3 + WAV), dan frame PNG.
 
+## Dikendalikan Claude (MCP)
+
+Labs Studio punya MCP server (`mcp/labs-studio-mcp.js`, tanpa dependensi tambahan). Dengan itu Claude bisa langsung mengedit videomu dan **melihat hasilnya** sebelum bilang selesai.
+
+| Alat | Fungsinya |
+|---|---|
+| `studio_status`, `start_studio` | cek atau nyalakan server lokal, lalu buka studio |
+| `list_projects`, `list_templates`, `create_project`, `get_project` | lihat dan buat proyek |
+| `list_layer_types` | jenis layer beserta propertinya, preset animasi, easing |
+| `add_layer`, `update_layer`, `set_keyframes`, `move_layer`, `remove_layer`, `update_composition` | edit komposisi |
+| `render_frames` | render 1 frame atau lembar beberapa frame (berlabel waktu) sebagai gambar |
+| `export_video`, `export_audio` | ekspor MP4 / MP3 + WAV ke `output/` |
+| `list_voices`, `generate_voice` | voice over ElevenLabs (memakai kuota berbayar, jadi Claude bertanya dulu) |
+
+**Claude Code:** buka Claude Code di folder ini. File [`.mcp.json`](.mcp.json) sudah mendaftarkan server-nya, dan Claude Code akan meminta persetujuanmu sekali. Dari folder lain:
+
+```bash
+claude mcp add labs-studio -- node /path/ke/labs-studio/mcp/labs-studio-mcp.js
+```
+
+**Claude Desktop dan klien MCP lain:** tambahkan `{ "mcpServers": { "labs-studio": { "command": "node", "args": ["/path/ke/labs-studio/mcp/labs-studio-mcp.js"] } } }` ke pengaturan MCP-nya.
+
+Render, ekspor, dan template berjalan di browser, jadi biarkan satu tab Labs Studio terbuka (`start_studio` bisa membukakannya). Kalau proyeknya sedang terbuka di editor, perubahan dari Claude langsung terlihat dan bisa dibatalkan dengan Ctrl+Z.
+
 ## Voice over (ElevenLabs)
 
 Pertama kali dipakai, dialog Voice over meminta API key ElevenLabs (elevenlabs.io → Profile → API Keys). Key disimpan hanya di komputer ini (`settings.local.json`).

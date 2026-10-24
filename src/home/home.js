@@ -4,6 +4,7 @@ import { SIZES } from '../motion/doc.js';
 import { LAYER_TYPES } from '../motion/registry.js';
 import { PRESETS } from '../motion/presets.js';
 import { ask, tell } from '../core/dialog.js';
+import '../core/bridge.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -195,3 +196,6 @@ fetch('/api/info').then((r) => r.json()).then((i) => { $('folder').textContent =
 
 renderTemplates();
 load();
+
+// proyek dibuat/diubah dari luar (MCP) → daftar diperbarui
+import.meta.hot?.on('labs:doc-changed', () => load());

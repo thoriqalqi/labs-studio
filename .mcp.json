@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "labs-studio": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp/labs-studio-mcp.js"]
+    }
+  }
+}

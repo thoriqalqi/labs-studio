@@ -12,7 +12,8 @@
   "scripts": {
     "dev": "vite",
     "start": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "mcp": "node mcp/labs-studio-mcp.js"
   },
   "dependencies": {
     "three": "0.160.0"

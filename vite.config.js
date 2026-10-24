@@ -16,6 +16,7 @@ import path from 'node:path';
 //   /api/export/...    frame/H.264 + audio → output/<id>.mp4 via ffmpeg
 //   /api/export-audio  WAV → output/<id>.mp3 + .wav
 //   /api/save-image    thumbnail / branding → output/
+//   /api/bridge        perintah ke tab studio yang terbuka (render frame, ekspor, template) — dipakai MCP server
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -139,6 +140,8 @@ function docHandler(colFixed) {
         doc.id = id;
         doc.updated = new Date().toISOString();
         fs.writeFileSync(file, JSON.stringify(doc, null, 1));
+        // diubah dari luar editor (mis. MCP) → editor yang membuka proyek ini memuat ulang
+        if (req.headers['x-labs-source']) broadcast('labs:doc-changed', { col, id, source: String(req.headers['x-labs-source']) });
         return json(res, 200, { ok: true, updated: doc.updated });
       }
       if (!fs.existsSync(file)) return json(res, 404, { error: 'Proyek tidak ditemukan' });
@@ -149,6 +152,9 @@ function docHandler(colFixed) {
     }
   };
 }
+
+// diisi saat server jalan: kirim event ke semua tab studio (lewat WebSocket Vite)
+let broadcast = () => {};
 
 function studioPlugin() {
   let job = null;
@@ -179,7 +185,57 @@ function studioPlugin() {
         json(res, 200, all);
       });
 
-      server.middlewares.use('/api/info', (req, res) => json(res, 200, { folder: process.cwd() }));
+      server.middlewares.use('/api/info', (req, res) => json(res, 200, { folder: process.cwd(), ffmpeg: hasFfmpeg, studioTabs: bridgeClients.size }));
+
+      // ---------- jembatan ke tab studio ----------
+      // Render & ekspor butuh browser (canvas, WebCodecs, Three.js). Server menawarkan perintah ke semua tab
+      // (labs:bridge-offer); tab pertama yang mengklaim mengerjakannya lalu mengirim hasil (labs:bridge-res).
+      broadcast = (event, payload) => server.ws.send(event, payload);
+      const bridgeClients = new Set();
+      const pending = new Map();
+      let seq = 0;
+      server.ws.on('labs:bridge-hello', (_data, client) => bridgeClients.add(client));
+      server.ws.on('connection', (socket) => socket.on('close', () => {
+        for (const c of bridgeClients) if (c.socket === socket) bridgeClients.delete(c);
+      }));
+      server.ws.on('labs:bridge-claim', ({ id }, client) => {
+        const p = pending.get(id);
+        if (!p || p.claimed) return;
+        p.claimed = true;
+        clearTimeout(p.claimTimer);
+        client.send('labs:bridge-req', { id, op: p.op, args: p.args });
+      });
+      server.ws.on('labs:bridge-res', ({ id, ok, result, error }) => {
+        const p = pending.get(id);
+        if (!p) return;
+        pending.delete(id);
+        clearTimeout(p.timer);
+        if (ok) p.resolve(result);
+        else p.reject(new Error(error || 'Perintah gagal di tab studio'));
+      });
+      server.middlewares.use('/api/bridge', async (req, res) => {
+        try {
+          const { op, args = {}, timeout = 120 } = JSON.parse((await readBody(req)).toString() || '{}');
+          if (!op) return json(res, 400, { error: 'op kosong' });
+          const id = `b${++seq}`;
+          const result = await new Promise((resolve, reject) => {
+            const p = { op, args, resolve, reject, claimed: false };
+            p.claimTimer = setTimeout(() => {
+              pending.delete(id);
+              reject(Object.assign(new Error('Tidak ada tab Labs Studio yang terbuka. Buka http://localhost:5173 di browser, lalu coba lagi.'), { code: 'no_studio' }));
+            }, 5000);
+            p.timer = setTimeout(() => {
+              pending.delete(id);
+              reject(new Error(`Waktu habis (${timeout} dtk) menunggu tab studio`));
+            }, timeout * 1000);
+            pending.set(id, p);
+            server.ws.send('labs:bridge-offer', { id, op });
+          });
+          json(res, 200, { ok: true, result });
+        } catch (err) {
+          json(res, err.code === 'no_studio' ? 503 : 500, { error: err.message, code: err.code });
+        }
+      });
 
       // ---------- pengaturan lokal (API key tidak pernah dikirim balik ke browser) ----------
       server.middlewares.use('/api/settings', async (req, res) => {
@@ -269,7 +325,9 @@ function studioPlugin() {
             const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'vo';
             const file = `${Date.now().toString(36)}-vo-${slug}.mp3`;
             fs.writeFileSync(path.join(dir, file), Buffer.from(await r.arrayBuffer()));
-            return json(res, 200, { url: `/media/uploads/${file}`, name: `VO · ${text.slice(0, 40)}`, chars: text.length });
+            const info = await probe(path.join(dir, file));
+            const duration = Number(info.format?.duration) || null;
+            return json(res, 200, { url: `/media/uploads/${file}`, name: `VO · ${text.slice(0, 40)}`, chars: text.length, duration });
           }
           return json(res, 404, { error: 'Tidak dikenal' });
         } catch (err) {

@@ -91,6 +91,13 @@ Template `kind: 'chibi'` membuat episode chibi (lihat `episode-chibi.js`).
 - Easing tersedia di `src/motion/keys.js` (`EASINGS`).
 - Layer audio: `props.in` = detik awal di file, panjang diputar = `dur × speed`.
 
+## MCP server (Claude mengendalikan studio)
+
+- `mcp/labs-studio-mcp.js`: MCP stdio tanpa dependensi, terdaftar lewat `.mcp.json`. Mendukung protokol modern (2026-07-28: `server/discover` + `_meta` per request) dan lama (`initialize`). Jangan menulis apa pun ke stdout selain pesan JSON-RPC (log ke stderr).
+- Edit dokumen dikerjakan di MCP server lalu disimpan lewat `/api/docs/motion/<id>` dengan header `x-labs-source: mcp` → server menyiarkan `labs:doc-changed` → editor yang membuka proyek itu memuat ulang lewat `store.mutate` (bisa di-undo).
+- Yang butuh browser (render, ekspor, template, info jenis layer) lewat `/api/bridge` → WebSocket Vite → `src/core/bridge.js` di tab studio (dimuat di beranda & editor motion). Tambah kemampuan baru: tambah `ops.<nama>` di `bridge.js` lalu alat baru di `TOOLS` pada MCP server.
+- Alat baru: deskripsi berbahasa Inggris (dibaca model, untuk pengguna open source), pesan error jelas, dan alat yang memakai kuota berbayar harus menyebutnya di deskripsi.
+
 ## Voice over (ElevenLabs)
 
 - API key disimpan di `settings.local.json` (lewat `/api/settings`), tidak pernah dikirim ke browser maupun ditulis ke log. File ini masuk `.gitignore`.
