@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Labs Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/src/styles.css">
+<link rel="stylesheet" href="/src/home/home.css">
+</head>
+<body class="home">
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Labs Studio, beranda"><span class="mark" aria-hidden="true"></span>Labs Studio</a>
+    <nav class="nav-links" aria-label="Bagian">
+      <a href="#proyek">Proyek</a>
+      <a href="#template">Template</a>
+      <a href="#kembangkan">Kembangkan</a>
+    </nav>
+    <span class="spacer"></span>
+    <label class="sr" for="search">Cari proyek</label>
+    <input id="search" type="search" placeholder="Cari proyek" autocomplete="off">
+    <button id="new-project" type="button" class="primary">Proyek baru</button>
+  </header>
+
+  <main class="home-main">
+    <section class="hero" aria-label="Labs Studio">
+      <div class="hero-frame">
+        <span class="cross tl" aria-hidden="true"></span>
+        <span class="cross br" aria-hidden="true"></span>
+        <p class="hero-l">Labs Studio<br>studio animasi lokal</p>
+        <span class="hero-tile app-tile" aria-hidden="true"></span>
+        <p class="hero-r">keyframe, 3D, dan suara<br>langsung jadi MP4</p>
+      </div>
+    </section>
+
+    <section id="proyek" class="block" aria-labelledby="proj-h">
+      <header class="block-head">
+        <h2 id="proj-h" class="label">Proyek</h2>
+        <span id="proj-count" class="label faint"></span>
+      </header>
+      <div id="projects" class="proj-grid"></div>
+    </section>
+
+    <section id="template" class="block" aria-labelledby="tpl-h">
+      <header class="block-head">
+        <h2 id="tpl-h" class="label">Mulai dari template</h2>
+      </header>
+      <div id="templates" class="tpl-grid"></div>
+    </section>
+
+    <section id="kembangkan" class="block" aria-labelledby="vibe-h">
+      <header class="block-head">
+        <h2 id="vibe-h" class="label">Kembangkan dengan Claude</h2>
+      </header>
+      <div class="vibe glass">
+        <p>Buka Claude Code di folder proyek, lalu minta fitur baru dengan bahasa biasa. Jenis layer, template, rakitan, dan preset animasi baru otomatis muncul di sini. Aturannya ada di <code>CLAUDE.md</code>.</p>
+        <ol id="prompts" class="prompts"></ol>
+        <div class="plugins">
+          <div><h3 class="label">Jenis layer</h3><div id="layer-list" class="chips"></div></div>
+          <div><h3 class="label">Preset animasi</h3><div id="preset-list" class="chips"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span id="folder"></span>
+      <span>localhost:5173</span>
+    </footer>
+  </main>
+
+  <dialog id="new-dialog">
+    <form method="dialog">
+      <h2>Proyek baru</h2>
+      <div id="tpl-pick" class="tpl-pick" role="radiogroup" aria-label="Template"></div>
+      <label class="f"><span>Nama proyek</span><input name="name" required autocomplete="off"></label>
+      <label class="f" data-for="motion"><span>Ukuran</span><select name="size"></select></label>
+      <label class="f" data-for="chibi"><span>Label episode</span><input name="label"></label>
+      <label class="f" data-for="script"><span>Naskah (opsional)</span>
+        <textarea name="script" rows="9" placeholder="Tempel naskah. Tiap kalimat jadi satu adegan. Penanda [NADA MULAI TEGAS], [EMOSIONAL], [PENUTUP] mengganti suasana."></textarea>
+      </label>
+      <div class="acts">
+        <button type="button" data-act="cancel">Batal</button>
+        <button type="submit" class="primary">Buat dan buka</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="rename-dialog">
+    <form method="dialog">
+      <h2>Ganti nama</h2>
+      <label class="f"><span>Nama baru</span><input name="name" required autocomplete="off"></label>
+      <div class="acts">
+        <button type="button" data-act="cancel">Batal</button>
+        <button type="submit" class="primary">Simpan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/src/home/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Labs Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@400;500&family=Baloo+2:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Bebas+Neue&family=Poppins:wght@400;600;700&family=Playfair+Display:wght@700&family=Caveat:wght@600&display=swap">
+<link rel="stylesheet" href="/src/styles.css">
+<link rel="stylesheet" href="/src/motion/motion.css">
+</head>
+<body class="motion">
+  <header class="topbar">
+    <a class="home-link" href="/" title="Kembali ke beranda">← Beranda</a>
+    <div class="brand"><span class="mark" aria-hidden="true"></span><span id="proj-name">Labs Studio</span></div>
+    <span class="sep"></span>
+    <button id="undo" type="button" title="Ctrl+Z" disabled>Undo</button>
+    <button id="redo" type="button" title="Ctrl+Y" disabled>Redo</button>
+    <span id="save-status" class="meta"></span>
+    <span class="spacer"></span>
+    <button id="export-video" type="button" class="primary">Ekspor MP4</button>
+    <button id="export-audio" type="button">Audio</button>
+    <button id="export-frame" type="button" title="Simpan frame saat ini sebagai PNG">Frame PNG</button>
+  </header>
+
+  <aside id="palette" class="panel scenes" aria-label="Tambah layer"></aside>
+
+  <main class="center">
+    <div class="frame" id="frame">
+      <div id="stage-wrap" class="stage-wrap">
+        <canvas id="stage" aria-label="Pratinjau komposisi"></canvas>
+        <canvas id="overlay" aria-hidden="true"></canvas>
+      </div>
+    </div>
+    <div class="transport">
+      <button id="to-start" type="button" aria-label="Ke awal">⏮</button>
+      <button id="play" type="button" class="primary">Putar</button>
+      <label class="sr" for="seek">Posisi waktu</label>
+      <input id="seek" type="range" min="0" step="0.001" value="0">
+      <span id="time" class="meta">0:00.00</span>
+      <span class="zoom" role="group" aria-label="Zoom kanvas">
+        <button id="zoom-out" type="button" title="Perkecil (Ctrl −, atau Ctrl + scroll)" aria-label="Perkecil">−</button>
+        <button id="zoom-label" type="button" title="Klik: pas layar ↔ 100% (Ctrl 0 = pas)">Pas</button>
+        <button id="zoom-in" type="button" title="Perbesar (Ctrl +, atau Ctrl + scroll)" aria-label="Perbesar">+</button>
+      </span>
+    </div>
+    <div id="status" class="status" aria-live="polite"></div>
+  </main>
+
+  <aside id="inspector" class="panel inspector" aria-label="Inspector"></aside>
+
+  <section id="timeline" class="timeline" aria-label="Timeline"></section>
+
+  <script type="module" src="/src/motion/app.js"></script>
+</body>
+</html>

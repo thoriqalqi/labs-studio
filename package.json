@@ -1,0 +1,23 @@
+{
+  "name": "labs-studio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A local, lightweight After Effects-style motion studio you extend by chatting with Claude Code.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": ["motion-graphics", "video-editor", "animation", "keyframes", "three.js", "vite", "claude-code"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.10"
+  }
+}

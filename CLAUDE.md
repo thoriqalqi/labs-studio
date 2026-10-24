@@ -1,0 +1,107 @@
+# Labs Studio: panduan untuk Claude
+
+Studio animasi lokal (semacam After Effects ringan) milik satu orang. Pemiliknya berbahasa Indonesia dan mengembangkan studio ini dengan vibe coding. **Semua teks UI, komentar kode, dan pesan ke pengguna memakai bahasa Indonesia santai-sopan.**
+
+## Menjalankan
+
+- `npm run dev` → http://localhost:5173 (port tetap; `strictPort`). Atau klik dua kali `Labs Studio.bat` (Windows) / `sh labs-studio.sh` (Mac/Linux).
+- Proyek ini open source (MIT). README utama berbahasa Inggris (`README.md`), versi Indonesia di `README.id.md`: kalau fitur berubah, perbarui keduanya. Data pengguna (`motion/`, `episodes/`, `media/`, `posters/`, `output/`) dan `settings.local.json` tidak boleh masuk git.
+- Tidak ada test otomatis. Untuk memeriksa perubahan: buka halaman terkait di browser, cek console, dan lihat hasil gambarnya.
+- `ffmpeg` dipakai server untuk ekspor (sudah ada di PATH).
+- Vite + Three.js 0.160, JavaScript biasa (ES module, tanpa TypeScript, tanpa framework UI). Jangan menambah dependensi kecuali benar-benar perlu.
+
+## Halaman
+
+| Halaman | File | Isi |
+|---|---|---|
+| Beranda | `index.html`, `src/home/` | Daftar proyek, buat dari template, panduan vibe coding |
+| Editor motion | `motion.html`, `src/motion/` | Komposisi berbasis layer + keyframe (proyek di `motion/<id>.json`) |
+| Editor episode chibi | `chibi.html`, `src/main.js`, `src/ui/` | Video naskah → adegan dengan karakter 3D (proyek di `episodes/<id>.json`) |
+
+Server lokal ada di `vite.config.js` (simpan/muat dokumen, unggah media, poster, ekspor lewat ffmpeg). Endpoint: lihat komentar di atas file itu.
+
+## Titik perluasan (otomatis terdaftar; tidak perlu mengubah file lain)
+
+### 1. Jenis layer baru → `src/motion/layers/<nama>.js`
+
+```js
+export default {
+  type: 'progress',            // unik, dipakai di dokumen
+  name: 'Progress bar',        // label di UI
+  icon: '▭',
+  category: 'Dasar',           // grup di panel Tambah
+  order: 30,
+  fullFrame: false,            // true = memenuhi layar (tidak bisa diklik/diseret di kanvas)
+  defaults: { w: 800, h: 24, value: 0, color: '#d9822b' },
+  schema: [                    // field inspector
+    { key: 'value', label: 'Persen', kind: 'number', min: 0, max: 100, step: 1, animatable: true },
+    { key: 'color', label: 'Warna', kind: 'color', animatable: true }
+    // kind: number | color | select (options: {nilai: label}) | checkbox | text | textarea | asset (accept: 'image/*')
+  ],
+  size: (p, env) => ({ w: p.w, h: p.h }),   // kotak pilihan, di koordinat lokal sebelum skala
+  draw(ctx, p, env) {
+    // ctx sudah di-translate ke posisi layer (0,0 = titik tengah), rotasi & skala sudah diterapkan.
+    // p = semua properti yang sudah di-resolve pada waktu ini (termasuk keyframe).
+    // env = { t, vt (detik sejak layer tampil), contentT (waktu konten untuk keyframe), comp {width,height,fps,duration},
+    //         layer, reveal (animasi teks), assets.image(url), ctx }
+  }
+};
+```
+
+- Properti umum (posisi, skala, rotasi, opacity, blur, bayangan, mode campur, crop) sudah ditangani engine. Jangan diulang di `schema`, dan **jangan memakai nama `x`, `y`, `scale`, `rotation`, `opacity`, `blur`, `shadow`, `shadowColor`, `blend`, `cropTop`, `cropBottom`, `cropLeft`, `cropRight` untuk properti sendiri**. Crop memotong kotak dari `size()`, jadi `size` harus sesuai dengan yang digambar (akan ikut dipakai sebagai transform; registry memberi peringatan di console).
+- Layer `sfx` = efek suara sintetis (fungsi di `SFX` pada `src/audio.js`, label di `SFX_LIST` pada `src/catalog.js`). Suara baru: tambah fungsi di `SFX` + labelnya, otomatis muncul di editor motion dan chibi.
+- Layer bawaan untuk video promo: `liquid` (latar gradien cair), `lines` (garis/bingkai tergambar), `screen3d` (layar aplikasi 3D, isi dari `src/motion/mockups.js`), `cursor`, `pill`, `logo`. Teks mendukung `*aksen*`, `[pil kata]`, dan `{logo}`.
+- Layer gaya editorial (kategori "Promo", dipakai template `promo-editorial.js`): `dots` (bidang halftone/deretan/jalur titik), `orb` (bola gradien pastel), `landscape` (pemandangan alam prosedural tanpa foto), `radial` (diagram lingkar kaca), `uicard` (kartu daftar berstatus), `counter` (angka berjalan bertumpuk), `wordroll` (kata bergulir). Teks punya font Geist & Instrument Serif, `accentFont`/`accentItalic` untuk *kata aksen*, dan preset `scatter`.
+- Layer `video`: elemen `<video>` bisu per layer (`env.assets.video` / `syncVideo` di `engine.js`); saat ekspor tiap frame di-seek tepat (`assets.seekAll`). Impor video di editor motion memanggil `/api/upload?keep=1`: format yang tidak bisa diputar browser dikonversi ke mp4, suaranya jadi layer audio pendamping.
+- Performa: pemutaran butuh ≤ 33 ms/frame. Blur ditangani engine di kanvas kecil (`drawBlurred`); jangan pakai `ctx.filter` blur sendiri di kanvas penuh. Gambar yang mahal tapi jarang berubah (lanskap, pendar) di-cache di kanvas lalu cukup ditempel/digeser tiap frame. `screen3d` hanya memakai WebGL saat dimiringkan (rotX/rotY ≠ 0).
+- `draw` harus murni dari `p` dan `env` (tanpa state antar-frame) supaya seek dan ekspor frame-demi-frame konsisten. Kalau butuh acak, pakai seed tetap.
+- Layer tanpa `draw` (seperti `audio.js`) tidak digambar.
+- Contoh: `text.js`, `shape.js`, `chibi3d.js` (merender Three.js ke canvas lalu `drawImage`).
+
+### 2. Template proyek → `src/templates/<nama>.js`
+
+```js
+import { newMotionDoc, newLayer } from '../motion/doc.js';
+export default {
+  id: 'countdown', name: 'Countdown', description: '…', kind: 'motion', order: 10,
+  create({ id, name, size }) {               // size: landscape | portrait | square | feed
+    const doc = newMotionDoc({ id, name, size, duration: 10 });
+    doc.layers.push(newLayer('text', doc.comp, { props: { text: '10' } }));
+    return doc;                               // doc.layers[0] = paling depan
+  }
+};
+```
+Template `kind: 'chibi'` membuat episode chibi (lihat `episode-chibi.js`).
+
+### 3. Preset animasi masuk/keluar → tambah entri di `src/motion/presets.js`
+`apply(k, m)`: `k` 0→1 (muncul), ubah `m.opacity`, `m.dx`, `m.dy`, `m.scale`, `m.rotation`, `m.blur`, atau `m.reveal` (khusus teks).
+
+### 4. Rakitan (beberapa layer sekaligus) → tambah entri di `src/motion/snippets.js`
+
+## Model data motion (`motion/<id>.json`)
+
+```
+{ type: 'motion', id, name, comp: { width, height, fps, duration, background },
+  layers: [ { id, type, name, start, dur, offset, hidden, locked,
+              props: { …nilai tetap… },
+              keys: { namaProp: [ { t, v, ease } ] },   // t = waktu konten (detik)
+              anim: { in: { preset, dur }, out: { preset, dur } } } ] }
+```
+- Waktu konten = `t - layer.start + layer.offset`. `offset` bertambah saat awal layer dipotong, jadi isi layer tidak bergeser.
+- Easing tersedia di `src/motion/keys.js` (`EASINGS`).
+- Layer audio: `props.in` = detik awal di file, panjang diputar = `dur × speed`.
+
+## Voice over (ElevenLabs)
+
+- API key disimpan di `settings.local.json` (lewat `/api/settings`), tidak pernah dikirim ke browser maupun ditulis ke log. File ini masuk `.gitignore`.
+- Semua panggilan ke ElevenLabs lewat server (`/api/eleven/voices|quota|tts`). Hasil mp3 masuk `media/uploads/`.
+- UI: `src/core/voiceover.js` (`openVoiceDialog`, `generateVoice`). Dipakai di editor motion (layer audio) dan editor chibi (`src/ui/voiceScenes.js`: VO per adegan dari subtitle + menyamakan durasi adegan).
+- Membuat suara memakai kuota karakter berbayar milik pengguna: selalu tampilkan jumlah karakter dan minta konfirmasi sebelum membuat banyak sekaligus.
+
+## Konvensi
+
+- UI memakai `src/styles.css`: token di `:root` (latar hitam-indigo + pendar violet "liquid gradient", panel & kartu kaca, garis hairline, font Geist + Geist Mono, tombol utama putih). Desain harus bersih: tanpa emoji dekoratif, tanpa teks bergradien, tanpa bayangan tebal; label kecil memakai `var(--mono)` huruf kapital. CSS khusus motion ada di `src/motion/motion.css`, beranda di `src/home/home.css`.
+- Jangan pakai `confirm()`, `alert()`, atau `prompt()` bawaan browser (diblokir di panel browser aplikasi Claude dan langsung dianggap "batal"). Pakai `ask()` / `tell()` dari `src/core/dialog.js`.
+- Semua perubahan dokumen lewat `store.mutate(fn)` (`src/store.js`) supaya bisa di-undo dan tersimpan otomatis. Untuk drag, ubah langsung lalu panggil `store.preview()`, dan `store.commit(snapshotSebelum)` saat selesai.
+- Folder data: `motion/`, `episodes/` (dokumen), `media/uploads/` (file unggahan), `posters/` (gambar kartu beranda), `output/` (hasil ekspor). Dokumen yang dihapus pindah ke `<folder>/.trash/`. Jangan hapus data pengguna tanpa diminta.
+- Editor episode chibi (`src/main.js` dkk.) adalah alat yang sudah dipakai untuk konten nyata. Jangan mengubah perilakunya tanpa diminta.

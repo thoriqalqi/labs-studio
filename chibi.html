@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Episode chibi · Labs Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Baloo+2:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="home-link" href="/" title="Kembali ke beranda">← Beranda</a>
+    <div class="brand"><span class="mark" aria-hidden="true"></span>Episode <b>chibi</b></div>
+    <label class="sr" for="ep-select">Episode</label>
+    <select id="ep-select"></select>
+    <button id="ep-new" type="button">+ Episode baru</button>
+    <button id="ep-dup" type="button">Duplikat</button>
+    <button id="ep-del" type="button" class="danger">Hapus</button>
+    <span class="sep"></span>
+    <button id="undo" type="button" title="Ctrl+Z" disabled>Undo</button>
+    <button id="redo" type="button" title="Ctrl+Y" disabled>Redo</button>
+    <span id="save-status" class="meta"></span>
+    <span class="spacer"></span>
+    <label class="meta">FPS <select id="fps"><option>30</option><option>60</option></select></label>
+    <button id="export-video" type="button" class="primary">Ekspor MP4</button>
+    <button id="export-audio" type="button">Audio</button>
+    <button id="export-thumb" type="button">Thumbnail</button>
+    <button id="export-brand" type="button">Profil + Banner</button>
+  </header>
+
+  <aside id="scenes" class="panel scenes" aria-label="Adegan"></aside>
+
+  <main class="center">
+    <div class="frame"><canvas id="stage" aria-label="Pratinjau video"></canvas></div>
+    <div class="transport">
+      <button id="prev" type="button" aria-label="Klip sebelumnya">⏮</button>
+      <button id="play" type="button" class="primary">Putar</button>
+      <button id="next" type="button" aria-label="Klip berikutnya">⏭</button>
+      <label class="sr" for="seek">Posisi waktu</label>
+      <input id="seek" type="range" min="0" step="0.01" value="0">
+      <span id="time" class="meta">0:00</span>
+      <span id="clip-info" class="meta"></span>
+      <label class="meta"><input id="subs" type="checkbox" checked> Subtitle</label>
+    </div>
+    <div id="status" class="status" aria-live="polite"></div>
+  </main>
+
+  <aside id="inspector" class="panel inspector" aria-label="Inspector"></aside>
+
+  <section id="timeline" class="timeline" aria-label="Timeline"></section>
+
+  <dialog id="new-ep">
+    <form method="dialog">
+      <h2>Episode baru</h2>
+      <label class="f"><span>Judul video</span><input name="title" required placeholder="Kamu Ngejar Dunia, Tapi Allah Kamu Tinggalkan"></label>
+      <label class="f"><span>Label episode</span><input name="label"></label>
+      <label class="f"><span>Naskah (opsional)</span>
+        <textarea name="script" rows="14" placeholder="Tempel naskah di sini. Tiap kalimat jadi satu adegan.&#10;Penanda seperti [NADA MULAI TEGAS], [EMOSIONAL], [PENUTUP] mengganti suasana."></textarea>
+      </label>
+      <p class="meta">Ekspresi, pose, kamera, properti, dan SFX ditebak dari isi naskah. Semuanya bisa diubah setelahnya.</p>
+      <div class="acts">
+        <button type="button" data-act="cancel">Batal</button>
+        <button type="submit" class="primary">Buat episode</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

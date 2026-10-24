@@ -1,0 +1,25 @@
+# dependensi
+node_modules/
+
+# rahasia (API key ElevenLabs, dll.) — jangan pernah di-commit
+settings.local.json
+.claude/settings.local.json
+.env*
+
+# data milik pengguna: proyek, unggahan, poster, hasil ekspor
+# (dibuat otomatis oleh server saat dipakai)
+/motion/
+/episodes/
+/projects/
+/media/
+/posters/
+/output/
+
+# catatan produksi pribadi
+/ep01-ngejar-dunia/
+
+# sistem
+.DS_Store
+Thumbs.db
+*.log
+/dist/
