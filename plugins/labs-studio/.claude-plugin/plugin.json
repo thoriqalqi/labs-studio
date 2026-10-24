@@ -1,0 +1,28 @@
+{
+  "name": "labs-studio",
+  "displayName": "Labs Studio",
+  "version": "0.1.0",
+  "description": "Make and edit motion-graphics videos in Labs Studio: Claude edits layers and keyframes, renders frames to check its work, and exports MP4.",
+  "author": {
+    "name": "thoriqalqi",
+    "url": "https://github.com/thoriqalqi"
+  },
+  "homepage": "https://github.com/thoriqalqi/labs-studio",
+  "repository": "https://github.com/thoriqalqi/labs-studio",
+  "license": "MIT",
+  "keywords": ["motion-graphics", "video", "animation", "keyframes", "mcp"],
+  "userConfig": {
+    "studio_dir": {
+      "type": "directory",
+      "title": "Studio folder",
+      "description": "Folder of your Labs Studio checkout (git clone https://github.com/thoriqalqi/labs-studio). Lets Claude start the studio for you. Leave empty if you open Claude Code inside that folder or start the studio yourself.",
+      "default": ""
+    },
+    "studio_url": {
+      "type": "string",
+      "title": "Studio URL",
+      "description": "Address of the running Labs Studio server.",
+      "default": "http://localhost:5173"
+    }
+  }
+}

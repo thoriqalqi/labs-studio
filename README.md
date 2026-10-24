@@ -55,7 +55,7 @@ Rendering is a pure function of `(document, time)`, so seeking and frame-by-fram
 
 ## Let Claude drive the studio (MCP)
 
-Labs Studio ships an [MCP](https://modelcontextprotocol.io) server (`mcp/labs-studio-mcp.js`, no extra dependencies) so Claude can edit your videos directly, and **look at the result** before telling you it's done.
+Labs Studio ships an [MCP](https://modelcontextprotocol.io) server (`plugins/labs-studio/mcp/labs-studio-mcp.mjs`, no extra dependencies) so Claude can edit your videos directly, and **look at the result** before telling you it's done.
 
 | Tool | What it does |
 |---|---|
@@ -67,16 +67,24 @@ Labs Studio ships an [MCP](https://modelcontextprotocol.io) server (`mcp/labs-st
 | `export_video`, `export_audio` | Export MP4 / MP3 + WAV to `output/` |
 | `list_voices`, `generate_voice` | ElevenLabs voice over (uses your paid quota, so Claude asks first) |
 
-**Claude Code:** open Claude Code in this folder. The bundled [`.mcp.json`](.mcp.json) registers the server, and Claude Code asks you to approve it once. From another folder:
+**Claude Code plugin (recommended):** installs the MCP server plus skills: a Labs Studio guide Claude loads on its own, and the commands `/labs-studio:make-video`, `/labs-studio:render-check`, `/labs-studio:new-layer` and `/labs-studio:new-template`. In Claude Code (2.1.275 or later):
+
+```
+/plugin install labs-studio --marketplace thoriqalqi/labs-studio
+```
+
+On older versions, run `/plugin marketplace add thoriqalqi/labs-studio`, then `/plugin install labs-studio@labs-studio`. The plugin drives the studio app, so you still need this repository cloned (`npm install`). Set the plugin's **Studio folder** option to the clone (`/plugin configure labs-studio@labs-studio`) so Claude can start the studio for you, or just open Claude Code inside the clone.
+
+**Claude Code without the plugin:** open Claude Code in this folder. The bundled [`.mcp.json`](.mcp.json) registers the server, and Claude Code asks you to approve it once. From another folder:
 
 ```bash
-claude mcp add labs-studio -- node /path/to/labs-studio/mcp/labs-studio-mcp.js
+claude mcp add labs-studio -- node /path/to/labs-studio/plugins/labs-studio/mcp/labs-studio-mcp.mjs
 ```
 
 **Claude Desktop and other MCP clients:** add this to the client's MCP config:
 
 ```json
-{ "mcpServers": { "labs-studio": { "command": "node", "args": ["/path/to/labs-studio/mcp/labs-studio-mcp.js"] } } }
+{ "mcpServers": { "labs-studio": { "command": "node", "args": ["/path/to/labs-studio/plugins/labs-studio/mcp/labs-studio-mcp.mjs"] } } }
 ```
 
 Rendering, exporting and templates run in the browser, so keep a Labs Studio tab open (`start_studio` can open one). If the project is open in the editor, Claude's changes show up live and can be undone with Ctrl+Z. Set `LABS_STUDIO_URL` if the studio runs somewhere other than `http://localhost:5173`. The server speaks both the current MCP revision (2026-07-28) and the older `initialize`-based ones.
@@ -90,12 +98,12 @@ Rendering, exporting and templates run in the browser, so keep a Labs Studio tab
 | `chibi.html`, `src/main.js`, `src/ui/` | Chibi episode editor (script → scenes with a 3D character) |
 | `src/templates/` | Project templates |
 | `vite.config.js` | Local server: save/load, uploads, ElevenLabs proxy, ffmpeg export, browser bridge |
-| `mcp/`, `src/core/bridge.js` | MCP server and the in-browser bridge it uses for rendering/export |
+| `plugins/labs-studio/`, `.claude-plugin/` | Claude Code plugin (MCP server + skills) and its marketplace |
+| `src/core/bridge.js` | In-browser bridge the MCP server uses for rendering/export |
 | `motion/`, `episodes/`, `media/`, `posters/`, `output/` | Your data (created on first use, git-ignored) |
 
 ## Roadmap
 
-- Claude Code plugin bundling the MCP server with skills and slash commands.
 - English UI.
 
 ## License

@@ -93,10 +93,17 @@ Template `kind: 'chibi'` membuat episode chibi (lihat `episode-chibi.js`).
 
 ## MCP server (Claude mengendalikan studio)
 
-- `mcp/labs-studio-mcp.js`: MCP stdio tanpa dependensi, terdaftar lewat `.mcp.json`. Mendukung protokol modern (2026-07-28: `server/discover` + `_meta` per request) dan lama (`initialize`). Jangan menulis apa pun ke stdout selain pesan JSON-RPC (log ke stderr).
+- `plugins/labs-studio/mcp/labs-studio-mcp.mjs`: MCP stdio tanpa dependensi, terdaftar lewat `.mcp.json`. Mendukung protokol modern (2026-07-28: `server/discover` + `_meta` per request) dan lama (`initialize`). Jangan menulis apa pun ke stdout selain pesan JSON-RPC (log ke stderr).
 - Edit dokumen dikerjakan di MCP server lalu disimpan lewat `/api/docs/motion/<id>` dengan header `x-labs-source: mcp` → server menyiarkan `labs:doc-changed` → editor yang membuka proyek itu memuat ulang lewat `store.mutate` (bisa di-undo).
 - Yang butuh browser (render, ekspor, template, info jenis layer) lewat `/api/bridge` → WebSocket Vite → `src/core/bridge.js` di tab studio (dimuat di beranda & editor motion). Tambah kemampuan baru: tambah `ops.<nama>` di `bridge.js` lalu alat baru di `TOOLS` pada MCP server.
 - Alat baru: deskripsi berbahasa Inggris (dibaca model, untuk pengguna open source), pesan error jelas, dan alat yang memakai kuota berbayar harus menyebutnya di deskripsi.
+
+## Plugin Claude Code
+
+- Repo ini juga marketplace: `.claude-plugin/marketplace.json` → plugin di `plugins/labs-studio/` (`.claude-plugin/plugin.json`, `.mcp.json`, `mcp/`, `skills/<nama>/SKILL.md`).
+- Plugin yang dipasang hanya membawa isi foldernya (tanpa `package.json` repo), jadi MCP server harus `.mjs` dan tidak boleh mengimpor apa pun dari luar folder plugin.
+- Folder aplikasi studio dicari dari pengaturan plugin `studio_dir`, lalu folder proyek Claude Code, lalu lokasi repo.
+- Setelah mengubah plugin: jalankan `claude plugin validate --strict ./plugins/labs-studio` dan `claude plugin validate --strict ./`, lalu naikkan `version` di `plugin.json` supaya pengguna mendapat pembaruan.
 
 ## Voice over (ElevenLabs)
 

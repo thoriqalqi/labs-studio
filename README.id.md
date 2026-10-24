@@ -59,7 +59,7 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 
 ## Dikendalikan Claude (MCP)
 
-Labs Studio punya MCP server (`mcp/labs-studio-mcp.js`, tanpa dependensi tambahan). Dengan itu Claude bisa langsung mengedit videomu dan **melihat hasilnya** sebelum bilang selesai.
+Labs Studio punya MCP server (`plugins/labs-studio/mcp/labs-studio-mcp.mjs`, tanpa dependensi tambahan). Dengan itu Claude bisa langsung mengedit videomu dan **melihat hasilnya** sebelum bilang selesai.
 
 | Alat | Fungsinya |
 |---|---|
@@ -71,13 +71,21 @@ Labs Studio punya MCP server (`mcp/labs-studio-mcp.js`, tanpa dependensi tambaha
 | `export_video`, `export_audio` | ekspor MP4 / MP3 + WAV ke `output/` |
 | `list_voices`, `generate_voice` | voice over ElevenLabs (memakai kuota berbayar, jadi Claude bertanya dulu) |
 
-**Claude Code:** buka Claude Code di folder ini. File [`.mcp.json`](.mcp.json) sudah mendaftarkan server-nya, dan Claude Code akan meminta persetujuanmu sekali. Dari folder lain:
+**Plugin Claude Code (disarankan):** memasang MCP server sekaligus skill: panduan Labs Studio yang dimuat Claude sendiri, plus perintah `/labs-studio:make-video`, `/labs-studio:render-check`, `/labs-studio:new-layer`, dan `/labs-studio:new-template`. Di Claude Code (2.1.275 ke atas):
 
-```bash
-claude mcp add labs-studio -- node /path/ke/labs-studio/mcp/labs-studio-mcp.js
+```
+/plugin install labs-studio --marketplace thoriqalqi/labs-studio
 ```
 
-**Claude Desktop dan klien MCP lain:** tambahkan `{ "mcpServers": { "labs-studio": { "command": "node", "args": ["/path/ke/labs-studio/mcp/labs-studio-mcp.js"] } } }` ke pengaturan MCP-nya.
+Di versi lama: `/plugin marketplace add thoriqalqi/labs-studio`, lalu `/plugin install labs-studio@labs-studio`. Plugin ini mengendalikan aplikasi studionya, jadi repo ini tetap perlu di-clone (`npm install`). Isi pengaturan **Studio folder** dengan folder clone tersebut (`/plugin configure labs-studio@labs-studio`) supaya Claude bisa menyalakan studio sendiri, atau cukup buka Claude Code di dalam folder clone.
+
+**Claude Code tanpa plugin:** buka Claude Code di folder ini. File [`.mcp.json`](.mcp.json) sudah mendaftarkan server-nya, dan Claude Code akan meminta persetujuanmu sekali. Dari folder lain:
+
+```bash
+claude mcp add labs-studio -- node /path/ke/labs-studio/plugins/labs-studio/mcp/labs-studio-mcp.mjs
+```
+
+**Claude Desktop dan klien MCP lain:** tambahkan `{ "mcpServers": { "labs-studio": { "command": "node", "args": ["/path/ke/labs-studio/plugins/labs-studio/mcp/labs-studio-mcp.mjs"] } } }` ke pengaturan MCP-nya.
 
 Render, ekspor, dan template berjalan di browser, jadi biarkan satu tab Labs Studio terbuka (`start_studio` bisa membukakannya). Kalau proyeknya sedang terbuka di editor, perubahan dari Claude langsung terlihat dan bisa dibatalkan dengan Ctrl+Z.
 

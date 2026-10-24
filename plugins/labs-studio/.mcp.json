@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "labs-studio": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/labs-studio-mcp.mjs"],
+      "env": {
+        "LABS_STUDIO_DIR": "${user_config.studio_dir}",
+        "LABS_STUDIO_URL": "${user_config.studio_url}",
+        "LABS_STUDIO_PROJECT_DIR": "${CLAUDE_PROJECT_DIR}"
+      }
+    }
+  }
+}

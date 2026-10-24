@@ -1,0 +1,15 @@
+{
+  "name": "labs-studio",
+  "description": "Labs Studio: a local After Effects-style motion studio you drive with Claude.",
+  "owner": {
+    "name": "thoriqalqi",
+    "url": "https://github.com/thoriqalqi"
+  },
+  "plugins": [
+    {
+      "name": "labs-studio",
+      "source": "./plugins/labs-studio",
+      "description": "Make and edit motion-graphics videos in Labs Studio: Claude edits layers and keyframes, renders frames to check its work, and exports MP4."
+    }
+  ]
+}

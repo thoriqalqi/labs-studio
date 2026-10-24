@@ -9,12 +9,32 @@
 // Protokol: mendukung MCP modern (2026-07-28: server/discover + _meta per request) dan lama (initialize).
 import http from 'node:http';
 import https from 'node:https';
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = (process.env.LABS_STUDIO_URL || 'http://localhost:5173').replace(/\/$/, '');
+// nilai env dari pengaturan plugin bisa kosong / belum terisi (${...} tidak tersubstitusi)
+const env = (k) => {
+  const v = (process.env[k] || '').trim();
+  return v && !v.includes('${') ? v : '';
+};
+const BASE = (env('LABS_STUDIO_URL') || 'http://localhost:5173').replace(/\/$/, '');
+const REPO_URL = 'https://github.com/thoriqalqi/labs-studio';
+
+// folder aplikasi Labs Studio (untuk start_studio): pengaturan plugin → folder proyek Claude Code →
+// repo tempat skrip ini berada (plugins/labs-studio/mcp/ → tiga tingkat ke atas) → folder kerja
+const isStudioDir = (d) => {
+  try {
+    return fs.existsSync(path.join(d, 'motion.html')) && JSON.parse(fs.readFileSync(path.join(d, 'package.json'), 'utf8')).name === 'labs-studio';
+  } catch {
+    return false;
+  }
+};
+const here = path.dirname(fileURLToPath(import.meta.url));
+const STUDIO_DIR = [env('LABS_STUDIO_DIR'), env('LABS_STUDIO_PROJECT_DIR'), path.resolve(here, '../../..'), process.cwd()]
+  .filter(Boolean)
+  .find(isStudioDir) || null;
 const SERVER_INFO = { name: 'labs-studio', version: '0.1.0' };
 const MODERN = ['2026-07-28'];
 const LEGACY = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -125,7 +145,7 @@ const TOOLS = [
     readOnly: true,
     async run() {
       const info = await isUp();
-      if (!info) return text(`Server: not running at ${BASE}. Call start_studio.`);
+      if (!info) return text(`Server: not running at ${BASE}. Call start_studio.\nStudio folder: ${STUDIO_DIR || 'not found (see start_studio)'}`);
       return text(`Server: running at ${BASE}\nStudio tabs open: ${info.studioTabs ?? 'unknown'}${info.studioTabs === 0 ? ' (open the studio in a browser to render/export)' : ''}\nffmpeg: ${info.ffmpeg === false ? 'NOT installed (MP4 export and video import unavailable)' : 'ok'}\nFolder: ${info.folder}`);
     }
   },
@@ -137,14 +157,24 @@ const TOOLS = [
       let info = await isUp();
       let started = false;
       if (!info) {
+        if (!STUDIO_DIR) {
+          throw new Error(`The Labs Studio app folder was not found. Clone ${REPO_URL}, then either open Claude Code in that folder or set the plugin's "Studio folder" option (/config). Alternatively start it yourself with "npm install" and "npm run dev".`);
+        }
         const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-        spawn(npm, ['run', 'dev'], { cwd: ROOT, detached: true, stdio: 'ignore', shell: process.platform === 'win32' }).unref();
+        const shell = process.platform === 'win32';
+        // pertama kali: pasang dependensi dulu
+        if (!fs.existsSync(path.join(STUDIO_DIR, 'node_modules'))) {
+          log(`npm install di ${STUDIO_DIR}`);
+          const code = await new Promise((r) => spawn(npm, ['install'], { cwd: STUDIO_DIR, stdio: 'ignore', shell }).on('close', r).on('error', () => r(1)));
+          if (code !== 0) throw new Error(`"npm install" failed in ${STUDIO_DIR}. Run it yourself and try again.`);
+        }
+        spawn(npm, ['run', 'dev'], { cwd: STUDIO_DIR, detached: true, stdio: 'ignore', shell }).unref();
         started = true;
         for (let i = 0; i < 30 && !info; i++) {
           await new Promise((r) => setTimeout(r, 500));
           info = await isUp();
         }
-        if (!info) throw new Error(`Started "npm run dev" in ${ROOT} but the server did not answer at ${BASE} within 15 s.`);
+        if (!info) throw new Error(`Started "npm run dev" in ${STUDIO_DIR} but the server did not answer at ${BASE} within 15 s.`);
       }
       if (open_browser && !info.studioTabs) {
         openBrowser(BASE);
