@@ -16,6 +16,8 @@ export const EASINGS = {
   easeOut: (x) => 1 - Math.pow(1 - x, 3),
   easeIn: (x) => x * x * x,
   linear: (x) => x,
+  // 'flow' sebenarnya kurva spline lewat keyframe tetangga (lihat valueAt); fungsi ini hanya cadangan
+  flow: (x) => x,
   back: backOut,
   bounce: bounceOut,
   hold: () => 0
@@ -26,6 +28,7 @@ export const EASE_LABEL = {
   easeOut: 'Melambat di akhir',
   easeIn: 'Mempercepat',
   linear: 'Linear',
+  flow: 'Mengalir (lewat tanpa berhenti)',
   back: 'Membal (overshoot)',
   bounce: 'Memantul',
   hold: 'Tahan (lompat)'
@@ -47,6 +50,33 @@ export function interpolate(a, b, k) {
   return k < 1 ? a : b;
 }
 
+// spline Hermite lewat keyframe: kemiringan di tiap titik diambil dari tetangganya (berbobot waktu),
+// jadi gerak kamera tidak melambat lalu berhenti di setiap keyframe. Keyframe pertama/terakhir/bertetangga 'hold'
+// tetap mulai/berhenti halus (kemiringan 0).
+function slopeAt(keys, i) {
+  const k = keys[i];
+  const p = keys[i - 1];
+  const n = keys[i + 1];
+  if (!p || !n || typeof p.v !== 'number' || typeof n.v !== 'number') return 0;
+  if (p.ease !== 'flow' || k.ease !== 'flow') return 0;
+  const s1 = (k.v - p.v) / (k.t - p.t);
+  const s2 = (n.v - k.v) / (n.t - k.t);
+  // titik balik (naik lalu turun) → diam sejenak supaya tidak melampaui nilai keyframe
+  if (s1 * s2 <= 0) return 0;
+  return (s1 * (n.t - k.t) + s2 * (k.t - p.t)) / (n.t - p.t);
+}
+function flowAt(keys, i, t) {
+  const a = keys[i];
+  const b = keys[i + 1];
+  const h = b.t - a.t;
+  const x = (t - a.t) / h;
+  const m0 = slopeAt(keys, i) * h;
+  const m1 = slopeAt(keys, i + 1) * h;
+  const x2 = x * x;
+  const x3 = x2 * x;
+  return (2 * x3 - 3 * x2 + 1) * a.v + (x3 - 2 * x2 + x) * m0 + (-2 * x3 + 3 * x2) * b.v + (x3 - x2) * m1;
+}
+
 export function valueAt(keys, t, fallback) {
   if (!keys || !keys.length) return fallback;
   if (t <= keys[0].t) return keys[0].v;
@@ -56,6 +86,7 @@ export function valueAt(keys, t, fallback) {
     const a = keys[i];
     const b = keys[i + 1];
     if (t >= a.t && t < b.t) {
+      if (a.ease === 'flow' && typeof a.v === 'number' && typeof b.v === 'number') return flowAt(keys, i, t);
       const e = EASINGS[a.ease] || EASINGS.easeInOut;
       return interpolate(a.v, b.v, e((t - a.t) / (b.t - a.t)));
     }

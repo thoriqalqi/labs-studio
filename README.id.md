@@ -51,6 +51,10 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 
 **Layer gaya editorial (Promo):** Pola titik, Bola gradien, Lanskap alam, Diagram lingkar, Kartu UI, Angka berjalan, Gulungan kata. Contohnya ada di proyek **Labs Motion · promo editorial** dan template **Promo editorial (Labs Motion)**.
 
+**Layer dunia (Promo):** Editor level (UI) meniru tampilan editor game engine (Outliner, Output Log, Cmd, notifikasi). Dunia dibangun (peta) adalah medan 3D WebGL yang terangkat dari lantai grid editor, lengkap dengan danau, sungai, hutan, kota bergedung kotak berjendela, dan tampilan orbit planet; semua tahap diatur lewat "front" (jari-jari) yang bisa di-keyframe. Contohnya ada di template **Membangun Indonesia (editor level)**: perintah diketik di konsol → dataran tinggi Toba terangkat → danau terisi → kamera menukik menyusuri jalan di antara menara kota Balige → naik ke orbit kepulauan Indonesia. Garis pantai Indonesia diambil dari [Natural Earth](https://www.naturalearthdata.com/) (domain publik).
+
+**Easing "Mengalir":** keyframe dengan easing ini dilewati tanpa berhenti (kurva spline), cocok untuk gerak kamera yang panjang.
+
 **Ganti gambar:** layer **Lanskap alam** punya kolom *Gambar sendiri* (foto pemandanganmu menggantikan ilustrasi, tetap bisa digeser lewat *Geser kamera* dan di-zoom). Layer **Layar aplikasi 3D** punya kolom *Gambar isi layar* untuk screenshot aplikasimu sendiri. Kosongkan kolomnya untuk kembali ke ilustrasi.
 
 **Ukuran:** 16:9 YouTube, 9:16 Shorts/Reels/TikTok, 1:1, 4:5, atau kustom.

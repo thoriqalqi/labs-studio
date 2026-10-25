@@ -10,9 +10,9 @@ Layers, keyframes, easing, text animation, 3D scenes, voice over, sound effects,
 
 ## Features
 
-- **Motion editor:** layer-based composition, keyframes on any numeric/color property, easing, in/out animation presets (fade, pop, blur, flowing, per-word, typewriter, scatter), canvas snapping with guides, scale and crop handles, canvas zoom, undo/redo, and autosave.
-- **Layer types:** text (with *accent*, `[pill]`, and `{logo}` markup, serif-italic accents), shapes, images, video, audio, synthesized SFX, liquid gradients, 3D app screens (Three.js), chibi 3D character, halftone dot fields, gradient orbs, procedural landscapes (or your own photo), glass radial diagrams, UI cards, counters, word rolls, cursors, pills, and logos.
-- **Templates:** blank, kinetic text, 3D character, liquid-gradient app intro, editorial promo (about 60 s, with voice-over timing), and a script-to-video chibi episode editor.
+- **Motion editor:** layer-based composition, keyframes on any numeric/color property, easing (including a flowing spline that passes through keyframes without stopping), in/out animation presets (fade, pop, blur, flowing, per-word, typewriter, scatter), canvas snapping with guides, scale and crop handles, canvas zoom, undo/redo, and autosave.
+- **Layer types:** text (with *accent*, `[pill]`, and `{logo}` markup, serif-italic accents), shapes, images, video, audio, synthesized SFX, liquid gradients, 3D app screens (Three.js), chibi 3D character, halftone dot fields, gradient orbs, procedural landscapes (or your own photo), glass radial diagrams, UI cards, counters, word rolls, cursors, pills, logos, a game-engine level editor UI, and a 3D world builder (WebGL terrain that rises from the editor grid, lakes, rivers, instanced forests, a city of windowed towers, and an orbit view of the planet).
+- **Templates:** blank, kinetic text, 3D character, liquid-gradient app intro, editorial promo (about 60 s, with voice-over timing), a one-shot "Building Indonesia" world build (a command typed in the level editor → the Lake Toba highlands rise → the camera flies down a street between the towers of a lakeside city → orbit over the archipelago), and a script-to-video chibi episode editor.
 - **Audio:** import audio/video (video tracks stay visual, the sound goes to its own layer), speed and trim, synthesized SFX with no audio files, and optional **ElevenLabs** voice over that runs through the local server so your key never reaches the browser.
 - **Export:** MP4 (WebCodecs H.264 + ffmpeg mux, frame-accurate), audio (MP3 + WAV), and PNG frames.
 - **Local and private:** projects are plain JSON files in this folder.
@@ -109,3 +109,5 @@ Ideas and pull requests are welcome: new layer types, templates, presets, transl
 ## License
 
 [MIT](LICENSE)
+
+The Indonesia coastline in `src/motion/data/indonesia.js` is derived from [Natural Earth](https://www.naturalearthdata.com/) (public domain).
