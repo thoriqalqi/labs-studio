@@ -4,8 +4,8 @@ import { createStore } from '../store.js';
 import { createAudio } from '../audio.js';
 import { exportVideo, savePoster } from '../core/exportVideo.js';
 import { LAYER_TYPES, getLayerDef } from './registry.js';
-import { renderComp, layerCorners, layerFrame, hitTest, isActive, setAssetListener, assets } from './engine.js';
-import { setKey } from './keys.js';
+import { renderComp, layerCorners, layerFrame, hitTest, isActive, setAssetListener, assets, resolveProps } from './engine.js';
+import { setKey, toContent, toGlobal, neighborKey, allKeyTimes } from './keys.js';
 import { newLayer, newId } from './doc.js';
 import { SNIPPETS } from './snippets.js';
 import { createInspector } from './ui/inspector.js';
@@ -416,8 +416,46 @@ const actions = {
     });
   },
   up() { move(-1); },
-  down() { move(1); }
+  down() { move(1); },
+  // ---------- keyframe ----------
+  // K: keyframe di playhead untuk semua properti yang sudah beranimasi
+  // (layer belum beranimasi: posisi, skala, rotasi, opacity)
+  kadd() {
+    const l = selected();
+    if (!l) return status('Pilih layer dulu');
+    if (l.locked) return status('Layer terkunci');
+    if (t < l.start - 1e-3 || t > l.start + l.dur + 1e-3) return status('Taruh playhead di dalam layer yang dipilih');
+    const def = getLayerDef(l.type);
+    let props = Object.keys(l.keys || {}).filter((p) => l.keys[p]?.length);
+    if (!props.length) props = def.audio ? (def.schema || []).filter((f) => f.animatable).map((f) => f.key).slice(0, 1) : ['x', 'y', 'scale', 'rotation', 'opacity'];
+    if (!props.length) return status('Layer ini tidak punya properti yang bisa dianimasikan');
+    store.mutate((d) => {
+      const a = selected(d);
+      const ct = toContent(a, t);
+      const p = resolveProps(a, def, ct, d.comp);
+      for (const k of props) setKey(a, k, ct, p[k]);
+    });
+    timeline.keys.toggleOpen(l.id, true);
+    status(`Keyframe ditambahkan (${props.length} properti)`);
+  },
+  kprev() { jumpKey(-1); },
+  knext() { jumpKey(1); }
 };
+// J / L: lompat ke keyframe sebelum/berikutnya (layer terpilih, atau semua layer)
+function jumpKey(dir) {
+  const l = selected();
+  let to;
+  if (l) {
+    const kt = neighborKey(l, toContent(l, t), dir);
+    if (kt != null) to = toGlobal(l, kt);
+  } else {
+    const times = doc().layers.flatMap((x) => allKeyTimes(x).map((kt) => toGlobal(x, kt)));
+    const pick = dir < 0 ? times.filter((x) => x < t - 1e-3) : times.filter((x) => x > t + 1e-3);
+    if (pick.length) to = dir < 0 ? Math.max(...pick) : Math.min(...pick);
+  }
+  if (to == null) return status(dir < 0 ? 'Tidak ada keyframe sebelumnya' : 'Tidak ada keyframe berikutnya');
+  seek(to);
+}
 function move(dir) {
   store.mutate((d) => {
     const l = selected(d);
@@ -568,6 +606,7 @@ window.addEventListener('pointerdown', (e) => {
 }, true);
 
 window.addEventListener('keydown', (e) => {
+  if (document.querySelector('dialog[open]')) return;
   const tag = e.target.tagName;
   if ((tag === 'INPUT' && !['range', 'checkbox'].includes(e.target.type)) || tag === 'TEXTAREA' || tag === 'SELECT') return;
   const ctrl = e.ctrlKey || e.metaKey;
@@ -583,8 +622,24 @@ window.addEventListener('keydown', (e) => {
   else if (ctrl && e.key === ']') { e.preventDefault(); actions.up(); }
   else if (ctrl && e.key === '[') { e.preventDefault(); actions.down(); }
   else if (!ctrl && k === 's') actions.split();
-  else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); actions.delete(); }
-  else if (e.key === 'Escape') store.select(null);
+  else if (!ctrl && k === 'k') actions.kadd();
+  else if (!ctrl && k === 'j') actions.kprev();
+  else if (!ctrl && k === 'l') actions.knext();
+  else if (!ctrl && k === 'u') { if (selected()) timeline.keys.toggleOpen(selected().id); }
+  else if (ctrl && k === 'c') {
+    const n = timeline.keys.copy();
+    if (n) { e.preventDefault(); status(`${n} keyframe disalin`); }
+  } else if (ctrl && k === 'v') {
+    const r = timeline.keys.paste();
+    if (!r) return;
+    e.preventDefault();
+    status(r.error || (r.skipped ? `${r.count} keyframe ditempel, ${r.skipped} dilewati` : `${r.count} keyframe ditempel`));
+  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+    e.preventDefault();
+    const n = timeline.keys.delete();
+    if (n) status(`${n} keyframe dihapus`);
+    else actions.delete();
+  } else if (e.key === 'Escape') { if (!timeline.keys.clear()) store.select(null); }
   else if (ctrl && (e.key === '=' || e.key === '+')) { e.preventDefault(); stepZoom(1); }
   else if (ctrl && e.key === '-') { e.preventDefault(); stepZoom(-1); }
   else if (ctrl && e.key === '0') { e.preventDefault(); setZoom(0); }

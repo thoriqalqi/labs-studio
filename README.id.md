@@ -33,13 +33,18 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 | Kiri: **Tambah** | Jenis layer (Latar, Teks, Bentuk, Gambar, Audio, Karakter chibi 3D), rakitan siap pakai (Judul + subjudul, Lower third, Subtitle, Kartu kutipan), impor file |
 | Tengah | Kanvas. Klik objek untuk memilih, seret untuk memindahkan. Seret **sudut** untuk memperbesar/memperkecil, seret **titik bulat di tengah sisi** untuk crop. Zoom tampilan: tombol − / + di bawah kanvas, Ctrl + scroll, Ctrl 0 = pas layar |
 | Kanan: **Inspector** | Properti layer. ○/◇/◆ untuk keyframe, pilih easing tiap keyframe, animasi masuk/keluar. Tanpa pilihan: pengaturan komposisi (ukuran, fps, durasi) |
-| Bawah: **Timeline** | Satu baris per layer (atas = paling depan). Seret batang untuk menggeser, seret tepi untuk memotong; ◆ = keyframe |
+| Bawah: **Timeline** | Satu baris per layer (atas = paling depan). Seret batang untuk menggeser, seret tepi untuk memotong; ◆ = keyframe. ▸ di nama layer membuka satu baris per properti beranimasi |
 
 **Garis bantu:** saat menggeser, layer menempel ke tengah layar (kiri-kanan dan atas-bawah), ke tepi layar, dan ke tepi/tengah layer lain, lalu muncul garis pink sebagai penanda. Tahan Ctrl atau Alt untuk menggeser bebas tanpa menempel.
 
 **Crop:** setiap layer punya Crop atas/bawah/kiri/kanan (%) di inspector, dan bisa diberi keyframe.
 
 **Keyframe:** klik ○ di samping properti untuk mulai beranimasi. Setelah itu, setiap kali nilainya diubah di waktu lain, keyframe baru otomatis dibuat (seperti After Effects).
+
+- Di timeline, ◆ bisa diklik (pilih + lompat ke sana), Shift+klik (pilih beberapa), dan diseret untuk menggeser waktunya (menempel ke playhead dan dibulatkan ke frame). Klik nama properti untuk memilih semua keyframe-nya.
+- Delete menghapus keyframe terpilih. Ctrl+C / Ctrl+V menyalin lalu menempelkannya ke layer terpilih, mulai dari playhead.
+- K menambah keyframe di playhead untuk semua properti yang beranimasi (layer yang belum beranimasi: posisi, skala, rotasi, opacity). J / L lompat ke keyframe sebelum/berikutnya. U membuka baris properti layer terpilih.
+- **Kurva kustom:** klik dua kali ◆, atau tombol kurva di sebelah pilihan easing, untuk mengatur kurva bezier sendiri (ada preset Halus, Melambat, Antisipasi, Melampaui, dll.).
 
 **Teks:** kata di antara `*bintang*` memakai warna aksen, `[kata]` jadi pil bergaris, `{logo}` jadi ikon logo. Animasi khusus teks: per kata dan mesin ketik.
 
@@ -59,7 +64,7 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 
 **Ukuran:** 16:9 YouTube, 9:16 Shorts/Reels/TikTok, 1:1, 4:5, atau kustom.
 
-**Pintasan:** Spasi putar · ← → 1 frame (Shift: 1 detik) · Home ke awal · S potong layer · Delete / Backspace hapus layer · Ctrl+D duplikat · Ctrl+Z / Ctrl+Y · Esc lepas pilihan.
+**Pintasan:** Spasi putar · ← → 1 frame (Shift: 1 detik) · Home ke awal · S potong layer · Delete / Backspace hapus layer (atau keyframe terpilih) · Ctrl+D duplikat · K tambah keyframe · J / L keyframe sebelum/berikut · U buka properti · Ctrl+C / Ctrl+V salin-tempel keyframe · Ctrl+Z / Ctrl+Y · Esc lepas pilihan.
 
 **Ekspor:** MP4 (`output/<id>.mp4`), audio saja (MP3 + WAV), dan frame PNG.
 

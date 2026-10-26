@@ -4,6 +4,7 @@
 import { getLayerDef, COMMON_SCHEMA, COMMON_DEFAULTS } from '../registry.js';
 import { PRESETS } from '../presets.js';
 import { EASE_LABEL, keyIndex, setKey, removeKey } from '../keys.js';
+import { editCurves, curveIcon } from './curve.js';
 import { resolveProps } from '../engine.js';
 import { SIZES } from '../doc.js';
 
@@ -48,6 +49,8 @@ export function createInspector(el, { store, getTime, seek, upload, actions }) {
         Tambah layer dari panel kiri, atau seret file gambar/audio/video ke jendela.<br>
         Klik objek di layar untuk memilih, seret untuk memindahkan.<br>
         ○ di samping properti = mulai animasi (keyframe).<br>
+        K keyframe di playhead · J / L keyframe sebelum/berikut · U buka properti di timeline<br>
+        Seret ◆ di timeline untuk menggeser, klik dua kali untuk kurva · Ctrl+C/V salin-tempel keyframe<br>
         Spasi putar · ← → mundur/maju 1 frame (Shift: 1 detik)<br>
         S potong layer · Del hapus · Ctrl+D duplikat · Ctrl+Z/Y</div>`;
   }
@@ -74,7 +77,12 @@ export function createInspector(el, { store, getTime, seek, upload, actions }) {
       case 'text': input = `<input type="text" ${attr} value="${esc(val)}">`; break;
       default: input = `<input type="number" ${attr} value="${r3(val)}"${f.min != null ? ` min="${f.min}"` : ''}${f.max != null ? ` max="${f.max}"` : ''} step="${f.step ?? 1}">`;
     }
-    const ease = ki >= 0 ? `<select class="ease" data-ease="${f.key}" aria-label="Easing keyframe" title="Easing menuju keyframe berikutnya">${options(EASE_LABEL, keys[ki].ease || 'easeInOut')}</select>` : '';
+    let ease = '';
+    if (ki >= 0) {
+      const k = keys[ki];
+      ease = `<div class="ease-row"><select class="ease" data-ease="${f.key}" aria-label="Easing keyframe" title="Easing menuju keyframe berikutnya">${options(EASE_LABEL, k.ease || 'easeInOut')}</select>`
+        + `<button type="button" class="curve-btn" data-curve="${f.key}" title="Atur kurva easing" aria-label="Atur kurva easing">${curveIcon(k.ease === 'custom' ? k.bz : null)}</button></div>`;
+    }
     return `<div class="prop${f.kind === 'textarea' ? ' wide' : ''}"><div class="prop-label"><span class="kfs">${kbtn}</span>${esc(f.label)}</div>${input}${ease}</div>`;
   }
 
@@ -211,11 +219,23 @@ export function createInspector(el, { store, getTime, seek, upload, actions }) {
     if (k) seek(layer.start + k.t - (layer.offset || 0));
   }
 
+  // kunci keyframe di playhead untuk properti ini (objek di store.doc)
+  function keyAtPlayhead(prop) {
+    const layer = selLayer();
+    if (!layer) return null;
+    const i = keyIndex(layer, prop, getTime() - layer.start + (layer.offset || 0));
+    return i >= 0 ? layer.keys[prop][i] : null;
+  }
+
   el.addEventListener('change', (e) => {
     const t = e.target;
     if (t.dataset.ease) {
       const prop = t.dataset.ease;
       const time = getTime();
+      if (t.value === 'custom') {
+        const k = keyAtPlayhead(prop);
+        return k && editCurves(store, [k]);
+      }
       return store.mutate((d) => {
         const layer = selLayer(d);
         const i = keyIndex(layer, prop, time - layer.start + (layer.offset || 0));
@@ -231,6 +251,10 @@ export function createInspector(el, { store, getTime, seek, upload, actions }) {
     if (b.dataset.key) return toggleKey(b.dataset.key);
     if (b.dataset.prev) return jumpKey(b.dataset.prev, -1);
     if (b.dataset.next) return jumpKey(b.dataset.next, 1);
+    if (b.dataset.curve) {
+      const k = keyAtPlayhead(b.dataset.curve);
+      return k && editCurves(store, [k]);
+    }
     if (b.dataset.asset) {
       const key = b.dataset.asset;
       const input = document.createElement('input');

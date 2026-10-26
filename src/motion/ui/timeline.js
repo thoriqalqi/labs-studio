@@ -1,11 +1,17 @@
 // Timeline layer: satu baris per layer (paling atas = paling depan), batang waktu bisa
-// digeser & di-trim, titik ◆ = keyframe (klik untuk lompat). Klik penggaris = pindah waktu.
-import { getLayerDef } from '../registry.js';
-import { allKeyTimes } from '../keys.js';
+// digeser & di-trim. Klik penggaris = pindah waktu.
+// Keyframe: titik ◆ di baris layer = semua properti pada waktu itu. ▸ di nama layer membuka satu baris
+// per properti beranimasi. ◆ bisa diklik (pilih + lompat), Shift+klik (tambah pilihan), diseret (geser waktu),
+// dan diklik dua kali (editor kurva easing). Hapus, salin, dan tempel lewat keyboard (lihat app.js).
+import { getLayerDef, COMMON_SCHEMA } from '../registry.js';
+import { allKeyTimes, setKey, toContent, toGlobal, tidyKeys, DEFAULT_BZ } from '../keys.js';
+import { editCurves } from './curve.js';
 
 const HEAD = 210;
 const RULER_H = 26;
 const ROW_H = 34;
+const SUB_H = 24;
+const NEAR = 1 / 240;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const fmt = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -13,6 +19,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 // ikon garis sederhana (stroke = warna teks tombol)
 const svg = (d) => `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const TOOLS = [
+  ['kprev', 'Keyframe sebelumnya (J)', svg('<path d="M15 6l-6 6 6 6"/>')],
+  ['kadd', 'Tambah keyframe di playhead (K)', svg('<path d="M12 4l7 8-7 8-7-8z"/>')],
+  ['knext', 'Keyframe berikutnya (L)', svg('<path d="M9 6l6 6-6 6"/>')],
   ['split', 'Potong di playhead (S)', svg('<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/>')],
   ['dup', 'Duplikat (Ctrl+D)', svg('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>')],
   ['up', 'Bawa ke depan (Ctrl+])', svg('<path d="M12 19V5M5 12l7-7 7 7"/>')],
@@ -27,7 +36,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
       <label>Zoom <input type="range" data-ctl="zoom" min="5" max="300" step="1" value="60"></label>
       <span class="sep"></span>
       <div class="tools" role="toolbar" aria-label="Aksi layer">
-        ${TOOLS.map(([act, label, icon]) => `<button type="button" class="tool${act === 'delete' ? ' danger' : ''}" data-tool="${act}" title="${label}" aria-label="${label}">${icon}</button>`).join('')}
+        ${TOOLS.map(([act, label, icon]) => `<button type="button" class="tool${act === 'delete' ? ' danger' : ''}${act === 'knext' ? ' gap' : ''}" data-tool="${act}" title="${label}" aria-label="${label}">${icon}</button>`).join('')}
       </div>
     </div>
     <div class="ed-scroll"><div class="ed-content mt"></div></div>`;
@@ -36,13 +45,67 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
   let playhead = null;
   const X = (t) => HEAD + t * pps;
 
+  // ---------- keadaan keyframe (hanya di editor, tidak disimpan ke dokumen) ----------
+  const open = new Set(); // id layer yang dibuka per properti
+  let keySel = []; // keyframe terpilih: { id, prop, t } (t = waktu konten)
+  let tops = [];
+  let heights = [];
+
+  const findLayer = (id, d = store.doc) => d.layers.find((l) => l.id === id);
+  const animProps = (l) => Object.keys(l.keys || {}).filter((p) => l.keys[p]?.length);
+  function propLabel(l, prop) {
+    const f = getLayerDef(l.type)?.schema?.find((x) => x.key === prop) || COMMON_SCHEMA.find((x) => x.key === prop);
+    return f?.label || prop;
+  }
+  const isSel = (id, prop, t) => keySel.some((s) => s.id === id && (prop == null || s.prop === prop) && Math.abs(s.t - t) < NEAR);
+  const toSel = (refs) => refs.map((r) => ({ id: r.layer.id, prop: r.prop, t: r.key.t }));
+
+  // keyframe yang diwakili satu titik: prop null = semua properti layer pada waktu t
+  function keysAt(l, prop, t) {
+    const out = [];
+    for (const p of prop ? [prop] : animProps(l)) {
+      for (const k of l.keys?.[p] || []) if (Math.abs(k.t - t) < NEAR) out.push({ layer: l, prop: p, key: k });
+    }
+    return out;
+  }
+  // pilihan → objek keyframe di dokumen saat ini (yang sudah tidak ada dibuang)
+  function selRefs() {
+    const out = [];
+    for (const s of keySel) {
+      const l = findLayer(s.id);
+      const k = l?.keys?.[s.prop]?.find((x) => Math.abs(x.t - s.t) < NEAR);
+      if (k) out.push({ layer: l, prop: s.prop, key: k });
+    }
+    keySel = toSel(out);
+    return out;
+  }
+
+  function kdHtml(l, prop, kt, y, extra = '') {
+    const at = toGlobal(l, kt);
+    if (at < l.start - 1e-3 || at > l.start + l.dur + 1e-3) return '';
+    const k = prop ? l.keys[prop].find((x) => Math.abs(x.t - kt) < NEAR) : null;
+    const cls = `kd${isSel(l.id, prop, kt) ? ' sel' : ''}${k?.ease === 'hold' ? ' e-hold' : ''}${k?.ease === 'custom' ? ' e-custom' : ''}${extra}`;
+    const label = prop ? `${propLabel(l, prop)} · ${at.toFixed(2)} dtk` : `Keyframe di ${at.toFixed(2)} detik`;
+    return `<button type="button" class="${cls}" data-layer="${l.id}" data-t="${kt}"${prop ? ` data-prop="${esc(prop)}"` : ''} style="left:${X(at)}px;top:${y}px" title="${esc(label)}" aria-label="${esc(label)}"></button>`;
+  }
+
   function render() {
     if (lifting) return;
     const d = store.doc;
+    selRefs();
     const total = d.comp.duration;
     const end = Math.max(total, ...d.layers.map((l) => l.start + l.dur)) + 3;
     const width = X(end);
-    const height = RULER_H + d.layers.length * ROW_H + 40;
+    tops = [];
+    heights = [];
+    let yy = RULER_H;
+    for (const l of d.layers) {
+      tops.push(yy);
+      const hh = ROW_H + (open.has(l.id) ? animProps(l).length * SUB_H : 0);
+      heights.push(hh);
+      yy += hh;
+    }
+    const height = yy + 40;
     content.style.width = `${width}px`;
     content.style.height = `${height}px`;
     const step = pps >= 120 ? 0.5 : pps >= 50 ? 1 : pps >= 20 ? 5 : 10;
@@ -53,10 +116,16 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
 
     d.layers.forEach((l, i) => {
       const def = getLayerDef(l.type);
-      const y = RULER_H + i * ROW_H;
+      const y = tops[i];
       const on = store.sel?.id === l.id;
+      const props = animProps(l);
+      const isOpen = open.has(l.id) && props.length > 0;
+      const tw = props.length
+        ? `<button type="button" class="ico tw${isOpen ? ' open' : ''}" data-tw="${l.id}" aria-expanded="${isOpen}" title="Buka/tutup properti beranimasi (U)" aria-label="Buka/tutup properti beranimasi">▸</button>`
+        : '<span class="tw-gap"></span>';
       h += `<div class="row${on ? ' on' : ''}" data-layer="${l.id}" style="top:${y}px;height:${ROW_H}px;width:${width}px">
         <div class="row-head mh" style="height:${ROW_H}px;width:${HEAD}px" data-id="${l.id}">
+          ${tw}
           <button type="button" class="ico" data-eye="${l.id}" aria-label="${l.hidden ? 'Tampilkan' : 'Sembunyikan'} layer" title="Tampil/sembunyi">${l.hidden ? '◌' : '●'}</button>
           <button type="button" class="ico" data-lock="${l.id}" aria-label="${l.locked ? 'Buka kunci' : 'Kunci'} layer" title="Kunci">${l.locked ? '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>' : '·'}</button>
           <span class="ty">${def?.icon || '?'}</span>
@@ -66,11 +135,18 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
       const w = Math.max(6, l.dur * pps);
       h += `<div class="clip mclip${on ? ' sel' : ''}${l.hidden ? ' off' : ''} t-${l.type}" data-id="${l.id}" data-layer="${l.id}" style="left:${X(l.start)}px;top:${y + 4}px;width:${w}px;height:${ROW_H - 8}px">
         ${def?.audio ? `<canvas class="wave" width="${Math.min(Math.ceil(w), 16000)}" height="${ROW_H - 8}"></canvas>` : ''}
-        <div class="edge l" data-edge="l"></div><span>${esc(l.name)}</span><div class="edge r" data-edge="r"></div></div>`;
-      for (const kt of allKeyTimes(l)) {
-        const at = l.start + kt - (l.offset || 0);
-        if (at < l.start - 1e-3 || at > l.start + l.dur + 1e-3) continue;
-        h += `<button type="button" class="kd" data-layer="${l.id}" data-jump="${at}" style="left:${X(at)}px;top:${y + ROW_H / 2}px" aria-label="Keyframe di ${at.toFixed(2)} detik"></button>`;
+        <div class="edge l" data-edge="l"></div><span translate="no">${esc(l.name)}</span><div class="edge r" data-edge="r"></div></div>`;
+      for (const kt of allKeyTimes(l)) h += kdHtml(l, null, kt, y + ROW_H / 2);
+      if (isOpen) {
+        props.forEach((p, j) => {
+          const py = y + ROW_H + j * SUB_H;
+          h += `<div class="row prow${on ? ' on' : ''}" data-layer="${l.id}" style="top:${py}px;height:${SUB_H}px;width:${width}px">
+            <div class="row-head prow-head" style="height:${SUB_H}px;width:${HEAD}px" data-id="${l.id}" data-prop-head="${esc(p)}" title="Klik untuk memilih semua keyframe properti ini">
+              <span class="pl">${esc(propLabel(l, p))}</span><span class="pn">${l.keys[p].length}</span>
+            </div></div>`;
+          h += `<div class="pspan" data-layer="${l.id}" style="left:${X(l.start)}px;top:${py + SUB_H / 2}px;width:${w}px"></div>`;
+          for (const k of l.keys[p]) h += kdHtml(l, p, k.t, py + SUB_H / 2, ' sub');
+        });
       }
     });
     if (!d.layers.length) h += `<div class="empty" style="top:${RULER_H + 20}px;left:${HEAD + 20}px">Belum ada layer. Tambah dari panel kiri.</div>`;
@@ -79,6 +155,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
     const idx = d.layers.findIndex((l) => l.id === store.sel?.id);
     el.querySelectorAll('[data-tool]').forEach((b) => {
       const a = b.dataset.tool;
+      if (a === 'kprev' || a === 'knext') return; // navigasi keyframe jalan juga tanpa layer terpilih
       b.disabled = idx < 0 || (a === 'up' && idx === 0) || (a === 'down' && idx === d.layers.length - 1);
     });
     playhead = content.querySelector('.ed-playhead');
@@ -125,12 +202,17 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
 
   content.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    if (e.target.closest('.ico') || e.target.closest('.kd')) return;
+    if (e.target.closest('.ico')) return;
+    const kd = e.target.closest('.kd');
+    if (kd) return dragKeys(e, kd);
     const head = e.target.closest('.row-head');
+    if (head?.dataset.propHead) return selectPropKeys(e, head.dataset.id, head.dataset.propHead);
     if (head) return dragRow(e, head.dataset.id);
+    if (keySel.length && !e.shiftKey) keySel = [];
     const clipEl = e.target.closest('.clip');
     if (!clipEl) {
       seek(timeAt(e.clientX));
+      render();
       drag((ev) => seek(timeAt(ev.clientX)));
       return;
     }
@@ -202,9 +284,23 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
   // ---------- efek "diangkat" saat memindah urutan layer ----------
   // Baris yang diseret melayang mengikuti kursor (bayangan + sedikit membesar),
   // baris lain bergeser memberi tempat. Timeline tidak digambar ulang selama diangkat.
+  // Tinggi baris bisa berbeda (layer yang dibuka per properti), jadi posisi memakai tops/heights.
   let lifting = null;
   const layerEls = (id) => content.querySelectorAll(`[data-layer="${id}"]`);
-  const slotFor = (from, dy) => clamp(Math.round(from + dy / ROW_H), 0, store.doc.layers.length - 1);
+  // slot tujuan = jumlah layer lain yang titik tengahnya di atas titik tengah baris yang diseret
+  function slotFor(from, dy) {
+    const c = tops[from] + heights[from] / 2 + dy;
+    let to = 0;
+    for (let i = 0; i < tops.length; i++) if (i !== from && tops[i] + heights[i] / 2 < c) to++;
+    return to;
+  }
+  // jarak geser baris yang diseret sampai ke slot barunya
+  function shiftTo(from, to) {
+    let s = 0;
+    if (to > from) for (let i = from + 1; i <= to; i++) s += heights[i];
+    else for (let i = to; i < from; i++) s -= heights[i];
+    return s;
+  }
 
   function lift(id) {
     lifting = id;
@@ -217,8 +313,8 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
     store.doc.layers.forEach((l, i) => {
       let ty = 0;
       if (l.id === id) ty = dy;
-      else if (from < to && i > from && i <= to) ty = -ROW_H;
-      else if (from > to && i >= to && i < from) ty = ROW_H;
+      else if (from < to && i > from && i <= to) ty = -heights[from];
+      else if (from > to && i >= to && i < from) ty = heights[from];
       for (const n of layerEls(l.id)) {
         const tx = l.id === id && !n.classList.contains('row') ? dxPx : 0;
         n.style.transform = `translate(${tx}px, ${ty}px)`;
@@ -232,7 +328,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
       n.classList.remove('lifted');
       n.classList.add('landing');
     }
-    place(id, dxPx, (to - from) * ROW_H, from, to);
+    place(id, dxPx, shiftTo(from, to), from, to);
     setTimeout(() => {
       lifting = null;
       content.classList.remove('reordering');
@@ -271,18 +367,206 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
   }
 
   content.addEventListener('click', (e) => {
+    const tw = e.target.closest('[data-tw]');
+    if (tw) return toggleOpen(tw.dataset.tw);
     const eye = e.target.closest('[data-eye]');
     const lock = e.target.closest('[data-lock]');
-    const kd = e.target.closest('.kd');
     if (eye) store.mutate((d) => { const l = d.layers.find((x) => x.id === eye.dataset.eye); l.hidden = !l.hidden; });
     if (lock) store.mutate((d) => { const l = d.layers.find((x) => x.id === lock.dataset.lock); l.locked = !l.locked; });
-    if (kd) seek(parseFloat(kd.dataset.jump));
   });
 
   el.querySelector('.tools').addEventListener('click', (e) => {
     const b = e.target.closest('[data-tool]');
     if (b && !b.disabled) actions[b.dataset.tool]?.();
   });
+
+  // ---------- keyframe: buka baris, pilih, seret ----------
+  function toggleOpen(id, force) {
+    const l = findLayer(id);
+    if (!l) return;
+    const want = force ?? !open.has(id);
+    if (want && animProps(l).length) open.add(id);
+    else open.delete(id);
+    render();
+  }
+
+  // klik nama properti = pilih semua keyframe properti itu (Shift = tambahkan)
+  function selectPropKeys(e, id, prop) {
+    e.preventDefault();
+    const l = findLayer(id);
+    const refs = (l.keys?.[prop] || []).map((k) => ({ layer: l, prop, key: k }));
+    keySel = e.shiftKey ? [...keySel, ...toSel(refs)] : toSel(refs);
+    if (store.sel?.id !== id) store.select({ kind: 'layer', id });
+    else render();
+  }
+
+  // tempel ke playhead / ujung layer, selain itu bulatkan ke frame
+  function snapKeyTime(g, layer) {
+    for (const c of [getTime(), layer.start, layer.start + layer.dur, 0]) if (Math.abs(c - g) * pps < 7) return c;
+    const fps = store.doc.comp.fps || 30;
+    return toGlobal(layer, Math.round(toContent(layer, g) * fps) / fps);
+  }
+
+  let lastDown = {};
+  function dragKeys(e, kd) {
+    e.preventDefault();
+    const id = kd.dataset.layer;
+    const prop = kd.dataset.prop || null;
+    const kt = parseFloat(kd.dataset.t);
+    const layer = findLayer(id);
+    const hit = keysAt(layer, prop, kt);
+    if (!hit.length) return;
+    // klik dua kali ◆ = editor kurva. Dideteksi sendiri karena timeline digambar ulang di antara dua klik.
+    const sig = `${id}|${prop}|${kt}`;
+    const now = performance.now();
+    if (!e.shiftKey && lastDown.sig === sig && now - lastDown.at < 400) {
+      lastDown = {};
+      return keyOps.curve();
+    }
+    lastDown = { sig, at: now };
+    const allSel = hit.every((r) => isSel(id, r.prop, kt));
+    if (e.shiftKey) {
+      // Shift+klik: tambah/lepas dari pilihan tanpa menggeser
+      const props = new Set(hit.map((r) => r.prop));
+      keySel = allSel ? keySel.filter((s) => !(s.id === id && props.has(s.prop) && Math.abs(s.t - kt) < NEAR)) : [...keySel, ...toSel(hit)];
+      return render();
+    }
+    if (!allSel) keySel = toSel(hit);
+    if (store.sel?.id !== id) store.select({ kind: 'layer', id });
+    else render();
+    const refs = selRefs();
+    if (!refs.length) return;
+    const locked = refs.some((r) => r.layer.locked);
+    const before = store.snapshot();
+    const orig = refs.map((r) => r.key.t);
+    const minT = Math.min(...orig);
+    const anchorG = toGlobal(layer, kt);
+    const x0 = e.clientX;
+    let moved = false;
+    drag((ev) => {
+      const dxPx = ev.clientX - x0;
+      if (locked || (!moved && Math.abs(dxPx) < 3)) return;
+      moved = true;
+      let dt = snapKeyTime(anchorG + dxPx / pps, layer) - anchorG;
+      dt = Math.max(dt, -minT); // waktu konten tidak boleh negatif
+      refs.forEach((r, i) => { r.key.t = orig[i] + dt; });
+      for (const r of refs) r.layer.keys[r.prop].sort((a, b) => a.t - b.t);
+      keySel = toSel(refs);
+      store.preview();
+      tip(ev, `${(anchorG + dt).toFixed(2)} dtk`);
+    }, () => {
+      tip(null);
+      if (!moved) return seek(anchorG);
+      // keyframe yang digeser menimpa keyframe lain di waktu yang sama
+      const movedSet = new Set(refs.map((r) => r.key));
+      const done = new Set();
+      for (const r of refs) {
+        const k = `${r.layer.id}|${r.prop}`;
+        if (done.has(k)) continue;
+        done.add(k);
+        tidyKeys(r.layer, r.prop, movedSet);
+      }
+      keySel = toSel(refs);
+      store.commit(before);
+    });
+  }
+
+  // label waktu kecil yang mengikuti kursor saat menggeser keyframe
+  let tipEl = null;
+  function tip(ev, text) {
+    if (!ev) {
+      tipEl?.remove();
+      tipEl = null;
+      return;
+    }
+    if (!tipEl) {
+      tipEl = document.createElement('div');
+      tipEl.className = 'kd-tip';
+      document.body.appendChild(tipEl);
+    }
+    tipEl.textContent = text;
+    tipEl.style.left = `${ev.clientX + 12}px`;
+    tipEl.style.top = `${ev.clientY - 30}px`;
+  }
+
+
+  // ---------- keyframe: hapus, salin, tempel (dipanggil dari pintasan keyboard) ----------
+  let clip = null;
+  const keyOps = {
+    count: () => selRefs().length,
+    clear() {
+      if (!keySel.length) return false;
+      keySel = [];
+      render();
+      return true;
+    },
+    delete() {
+      const sel = toSel(selRefs());
+      if (!sel.length) return 0;
+      keySel = [];
+      store.mutate((d) => {
+        for (const s of sel) {
+          const l = findLayer(s.id, d);
+          const list = l?.keys?.[s.prop];
+          if (!list || l.locked) continue;
+          const i = list.findIndex((k) => Math.abs(k.t - s.t) < NEAR);
+          if (i < 0) continue;
+          const [k] = list.splice(i, 1);
+          // keyframe terakhir properti ini dihapus: nilainya jadi nilai tetap
+          if (!list.length) {
+            delete l.keys[s.prop];
+            l.props[s.prop] = k.v;
+          }
+        }
+      });
+      return sel.length;
+    },
+    copy() {
+      const refs = selRefs();
+      if (!refs.length) return 0;
+      // jarak waktu dihitung di waktu global, jadi keyframe dari beberapa layer tetap sejajar
+      const g = refs.map((r) => toGlobal(r.layer, r.key.t));
+      const g0 = Math.min(...g);
+      clip = refs.map((r, i) => ({ prop: r.prop, dt: g[i] - g0, v: structuredClone(r.key.v), ease: r.key.ease, bz: r.key.bz ? [...r.key.bz] : undefined }));
+      return refs.length;
+    },
+    // tempel ke layer terpilih; keyframe paling awal jatuh di playhead
+    paste() {
+      const l0 = findLayer(store.sel?.id);
+      if (!clip?.length) return null; // belum ada keyframe yang disalin: biarkan Ctrl+V biasa
+      if (!l0) return { error: 'Pilih layer tujuan dulu' };
+      if (l0.locked) return { error: 'Layer terkunci' };
+      const def = getLayerDef(l0.type);
+      const ok = new Set([
+        ...(def.schema || []).filter((f) => f.animatable).map((f) => f.key),
+        ...(def.audio ? [] : COMMON_SCHEMA.filter((f) => f.animatable).map((f) => f.key))
+      ]);
+      const items = clip.filter((c) => ok.has(c.prop));
+      if (!items.length) return { error: 'Properti yang disalin tidak ada di layer ini' };
+      const base = toContent(l0, getTime());
+      const out = [];
+      store.mutate((d) => {
+        const l = findLayer(l0.id, d);
+        for (const c of items) {
+          const t = Math.max(0, Math.round((base + c.dt) * 1000) / 1000);
+          setKey(l, c.prop, t, structuredClone(c.v), c.ease);
+          const k = l.keys[c.prop].find((x) => Math.abs(x.t - t) < NEAR);
+          if (c.ease === 'custom') k.bz = [...(c.bz || DEFAULT_BZ)];
+          else delete k.bz;
+          out.push({ id: l.id, prop: c.prop, t: k.t });
+        }
+        keySel = out;
+      });
+      open.add(l0.id);
+      render();
+      return { count: items.length, skipped: clip.length - items.length };
+    },
+    curve() {
+      const refs = selRefs();
+      if (refs.length && !refs.some((r) => r.layer.locked)) editCurves(store, refs.map((r) => r.key));
+    },
+    toggleOpen
+  };
 
   el.querySelector('[data-ctl=zoom]').addEventListener('input', (e) => {
     const center = (scroll.scrollLeft + scroll.clientWidth / 2 - HEAD) / pps;
@@ -306,5 +590,5 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
     render();
   }
 
-  return { render, setTime, fit };
+  return { render, setTime, fit, keys: keyOps };
 }

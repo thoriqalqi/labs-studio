@@ -1,5 +1,6 @@
-// Keyframe & easing. Keyframe disimpan per properti di layer.keys[nama] = [{ t, v, ease }],
+// Keyframe & easing. Keyframe disimpan per properti di layer.keys[nama] = [{ t, v, ease, bz? }],
 // t = detik di dalam layer (waktu konten), ease = easing menuju keyframe berikutnya.
+// ease 'custom' = kurva bezier sendiri di bz = [x1, y1, x2, y2] (seperti cubic-bezier di CSS).
 
 const backOut = (x) => 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2);
 const bounceOut = (x) => {
@@ -20,7 +21,8 @@ export const EASINGS = {
   flow: (x) => x,
   back: backOut,
   bounce: bounceOut,
-  hold: () => 0
+  hold: () => 0,
+  custom: (x) => x // diganti kurva bz milik keyframe (lihat easeOf)
 };
 
 export const EASE_LABEL = {
@@ -31,8 +33,53 @@ export const EASE_LABEL = {
   flow: 'Mengalir (lewat tanpa berhenti)',
   back: 'Membal (overshoot)',
   bounce: 'Memantul',
-  hold: 'Tahan (lompat)'
+  hold: 'Tahan (lompat)',
+  custom: 'Kurva kustom'
 };
+
+// kurva bezier kubik (0,0)→(x1,y1)→(x2,y2)→(1,1): cari t untuk x lewat Newton, lalu hitung y
+export const DEFAULT_BZ = [0.42, 0, 0.58, 1];
+const bzCache = new Map();
+export function cubicBezier(x1, y1, x2, y2) {
+  const id = `${x1},${y1},${x2},${y2}`;
+  if (bzCache.has(id)) return bzCache.get(id);
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const sx = (u) => ((ax * u + bx) * u + cx) * u;
+  const sy = (u) => ((ay * u + by) * u + cy) * u;
+  const dx = (u) => (3 * ax * u + 2 * bx) * u + cx;
+  const fn = (x) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    let u = x;
+    for (let i = 0; i < 8; i++) {
+      const e = sx(u) - x;
+      if (Math.abs(e) < 1e-6) return sy(u);
+      const d = dx(u);
+      if (Math.abs(d) < 1e-6) break;
+      u -= e / d;
+    }
+    // cadangan: belah dua
+    let lo = 0, hi = 1;
+    u = x;
+    for (let i = 0; i < 30; i++) {
+      const v = sx(u);
+      if (Math.abs(v - x) < 1e-6) break;
+      if (v < x) lo = u; else hi = u;
+      u = (lo + hi) / 2;
+    }
+    return sy(u);
+  };
+  if (bzCache.size > 200) bzCache.clear();
+  bzCache.set(id, fn);
+  return fn;
+}
+
+// fungsi easing milik satu keyframe (menuju keyframe berikutnya)
+export function easeOf(k) {
+  if (k.ease === 'custom') return cubicBezier(...(Array.isArray(k.bz) && k.bz.length === 4 ? k.bz : DEFAULT_BZ));
+  return EASINGS[k.ease] || EASINGS.easeInOut;
+}
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
@@ -87,8 +134,7 @@ export function valueAt(keys, t, fallback) {
     const b = keys[i + 1];
     if (t >= a.t && t < b.t) {
       if (a.ease === 'flow' && typeof a.v === 'number' && typeof b.v === 'number') return flowAt(keys, i, t);
-      const e = EASINGS[a.ease] || EASINGS.easeInOut;
-      return interpolate(a.v, b.v, e((t - a.t) / (b.t - a.t)));
+      return interpolate(a.v, b.v, easeOf(a)((t - a.t) / (b.t - a.t)));
     }
   }
   return last.v;
@@ -126,4 +172,28 @@ export function allKeyTimes(layer) {
   const set = new Set();
   for (const list of Object.values(layer.keys || {})) for (const k of list) set.add(k.t);
   return [...set].sort((a, b) => a - b);
+}
+
+// waktu global (detik komposisi) ↔ waktu konten layer
+export const toContent = (layer, t) => t - layer.start + (layer.offset || 0);
+export const toGlobal = (layer, ct) => layer.start + ct - (layer.offset || 0);
+
+// keyframe terdekat sebelum/sesudah waktu konten ct (semua properti, atau satu properti)
+export function neighborKey(layer, ct, dir, prop) {
+  const times = prop ? (layer.keys?.[prop] || []).map((k) => k.t) : allKeyTimes(layer);
+  if (dir < 0) return [...times].reverse().find((x) => x < ct - 1e-3);
+  return times.find((x) => x > ct + 1e-3);
+}
+
+// rapikan daftar keyframe setelah digeser: urutkan, bulatkan, dan buang yang bertumpuk
+// (keyframe yang baru digeser menang atas yang sudah ada di waktu yang sama)
+export function tidyKeys(layer, prop, moved = new Set()) {
+  const list = layer.keys?.[prop];
+  if (!list) return;
+  for (const k of list) k.t = Math.round(k.t * 1000) / 1000;
+  list.sort((a, b) => a.t - b.t || (moved.has(a) ? 1 : 0) - (moved.has(b) ? 1 : 0));
+  for (let i = list.length - 1; i > 0; i--) {
+    if (Math.abs(list[i].t - list[i - 1].t) < SAME) list.splice(moved.has(list[i - 1]) && !moved.has(list[i]) ? i : i - 1, 1);
+  }
+  if (!list.length) delete layer.keys[prop];
 }

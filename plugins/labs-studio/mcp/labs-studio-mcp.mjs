@@ -102,7 +102,13 @@ function findLayer(doc, ref) {
 let uid = 0;
 const newId = (p) => `${p}${Date.now().toString(36)}${(uid++).toString(36)}`;
 const round = (x) => Math.round(x * 1000) / 1000;
-const normKeys = (list) => (list || []).map((k) => ({ t: round(Number(k.t) || 0), v: k.v, ease: k.ease || 'easeInOut' })).sort((a, b) => a.t - b.t);
+const normKeys = (list) => (list || []).map((k) => {
+  const out = { t: round(Number(k.t) || 0), v: k.v, ease: k.ease || 'easeInOut' };
+  // ease 'custom' = kurva bezier sendiri di bz [x1, y1, x2, y2]
+  if (Array.isArray(k.bz) && k.bz.length === 4 && k.bz.every((n) => Number.isFinite(Number(n)))) out.bz = k.bz.map(Number);
+  else if (out.ease === 'custom') out.bz = [0.42, 0, 0.58, 1];
+  return out;
+}).sort((a, b) => a.t - b.t);
 const describeAnim = (a) => (a ? `in ${a.in?.preset || 'none'} ${round(a.in?.dur ?? 0)}s, out ${a.out?.preset || 'none'} ${round(a.out?.dur ?? 0)}s` : 'none');
 
 function summarizeLayer(l, i, detail) {
@@ -134,7 +140,7 @@ const S = {
   layer: { type: 'string', description: 'Layer id or exact layer name' },
   props: { type: 'object', description: 'Property values, e.g. {"text":"Hello","size":96,"x":960,"y":540}. Common props on every layer: x, y, scale (%), rotation (deg), opacity (%), blur, shadow, shadowColor, blend, cropTop/cropBottom/cropLeft/cropRight (%).', additionalProperties: true },
   anim: { type: 'object', description: 'Entry/exit animation, e.g. {"in":{"preset":"flowIn","dur":0.45},"out":{"preset":"flowOut","dur":0.3}}. Presets: see list_layer_types.', additionalProperties: true },
-  keyframes: { type: 'array', description: 'Keyframes [{t, v, ease}] — t in seconds relative to the layer start; ease one of easeInOut, easeOut, easeIn, linear, back, bounce, hold.', items: { type: 'object', properties: { t: { type: 'number' }, v: {}, ease: { type: 'string' } }, required: ['t', 'v'] } }
+  keyframes: { type: 'array', description: 'Keyframes [{t, v, ease, bz?}] — t in seconds relative to the layer start; ease one of easeInOut, easeOut, easeIn, linear, flow, back, bounce, hold, custom. For ease "custom", bz is a cubic-bezier [x1, y1, x2, y2] like CSS (x in 0..1).', items: { type: 'object', properties: { t: { type: 'number' }, v: {}, ease: { type: 'string' }, bz: { type: 'array', items: { type: 'number' }, minItems: 4, maxItems: 4 } }, required: ['t', 'v'] } }
 };
 
 const TOOLS = [

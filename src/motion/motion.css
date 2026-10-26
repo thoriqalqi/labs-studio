@@ -32,7 +32,9 @@ body.motion .stage-wrap { flex: none; margin: auto; }
 .prop input[type=number] { font-family: var(--mono); font-size: 12px; }
 .prop input[type=color] { width: 100%; height: 30px; padding: 2px; background: rgba(255, 255, 255, 0.035); border: 1px solid var(--line-2); border-radius: 8px; }
 .prop textarea { width: 100%; padding: 8px; resize: vertical; }
-.prop .ease { grid-column: 1 / -1; height: 26px; font-size: 11px; }
+.prop .ease-row { grid-column: 1 / -1; display: flex; gap: 4px; }
+.prop .ease { flex: 1; min-width: 0; height: 26px; font-size: 11px; }
+.curve-btn { flex: none; width: 36px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--accent-ink); }
 .kfs { display: inline-flex; gap: 1px; flex: none; }
 .kf, .kn { height: 22px; min-width: 22px; padding: 0 3px; border-radius: 6px; font-size: 12px; line-height: 1; background: transparent; border: 1px solid transparent; box-shadow: none; color: var(--faint); }
 .kf.has { color: var(--accent-ink); }
@@ -47,6 +49,7 @@ body.motion .stage-wrap { flex: none; margin: auto; }
 .tool { width: 32px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .tool.danger { color: var(--danger); }
 .tool:disabled { opacity: 0.3; }
+.tool.gap { margin-right: 10px; }
 
 /* timeline layer */
 .mt .row.on { background: rgba(166, 162, 255, 0.06); }
@@ -80,7 +83,48 @@ body.motion .stage-wrap { flex: none; margin: auto; }
 .mclip.off { opacity: 0.35; }
 .mclip .wave { position: absolute; left: 0; top: 0; pointer-events: none; }
 .kd { position: absolute; width: 9px; height: 9px; padding: 0; margin: -4.5px 0 0 -4.5px; rotate: 45deg; background: #f3f2ff; border: 1px solid #0a0a16; border-radius: 1.5px; box-shadow: none; z-index: 3; cursor: pointer; }
-.kd:hover { background: #ffffff; scale: 1.25; }
+.mt .kd:hover { background: #ffffff; border-color: #0a0a16; scale: 1.25; }
+.kd.sel { background: var(--accent); border-color: #ffffff; box-shadow: 0 0 0 2px rgba(166, 162, 255, 0.35); }
+.kd.sub { width: 8px; height: 8px; margin: -4px 0 0 -4px; background: #d6d4ff; }
+.kd.sub.sel { background: var(--accent); }
+.kd.e-hold { rotate: 0deg; border-radius: 1px; }
+.kd.e-custom { border-radius: 50% 1.5px; }
+.kd-tip { position: fixed; z-index: 50; pointer-events: none; padding: 3px 7px; border-radius: 6px; background: var(--panel-solid); border: 1px solid var(--line-2); font-family: var(--mono); font-size: 11px; color: var(--text); }
+
+/* baris per properti beranimasi (layer dibuka dengan ▸) */
+.mt .tw { min-width: 16px; width: 16px; font-size: 10px; transition: rotate 120ms; }
+.mt .tw.open { rotate: 90deg; color: var(--accent-ink); }
+.mt .tw-gap { width: 16px; flex: none; }
+.mt .prow { border-bottom-color: rgba(214, 212, 255, 0.035); }
+.mt .prow-head { padding-left: 40px; gap: 6px; cursor: pointer; font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.mt .prow-head:hover { color: var(--text); }
+.mt .prow-head .pl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt .prow-head .pn { margin-left: auto; margin-right: 10px; color: var(--faint); }
+.mt .row.prow.on .prow-head { background: #100e27; color: #d4d3f2; }
+.pspan { position: absolute; height: 1px; background: rgba(214, 212, 255, 0.12); pointer-events: none; z-index: 1; }
+
+/* editor kurva easing */
+.curve-dialog { width: min(560px, 94vw); }
+.curve-sub { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.curve-body { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.curve-svg { flex: none; max-width: 100%; height: auto; touch-action: none; }
+.curve-box { fill: rgba(255, 255, 255, 0.025); stroke: var(--line-2); }
+.curve-grid { stroke: var(--line); stroke-dasharray: 3 4; }
+.curve-ax { fill: var(--faint); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+.curve-arm { stroke: var(--faint); stroke-width: 1; }
+.curve-path { fill: none; stroke: var(--text); stroke-width: 2.2; stroke-linecap: round; }
+.curve-end { fill: var(--muted); }
+.curve-h { fill: var(--accent); stroke: #ffffff; stroke-width: 1.5; cursor: grab; outline: none; }
+.curve-h:hover, .curve-h:focus-visible { fill: #ffffff; }
+.curve-side { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 14px; }
+.curve-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.curve-presets button { height: 28px; padding: 0 10px; font-size: 12px; }
+.curve-presets button.on { background: var(--primary-bg); color: var(--primary-ink); border-color: transparent; }
+.curve-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.curve-nums .f span { font-family: var(--mono); text-transform: uppercase; }
+.curve-nums input { height: 32px; width: 100%; }
+.curve-track { position: relative; height: 22px; border-radius: 11px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); margin: 0 4px; }
+.curve-track i { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--accent); }
 .comp-end { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(214, 212, 255, 0.4); }
 .beyond { position: absolute; background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 6px, transparent 6px 12px); pointer-events: none; }
 .empty { position: absolute; color: var(--muted); }
