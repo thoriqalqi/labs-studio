@@ -197,3 +197,20 @@ export function tidyKeys(layer, prop, moved = new Set()) {
   }
   if (!list.length) delete layer.keys[prop];
 }
+
+// ---------- keyframe otomatis ----------
+// Layer yang sudah punya keyframe langsung "merekam": mengubah properti apa pun di waktu lain
+// membuat keyframe hanya untuk properti itu (nilai lamanya ditaruh di keyframe pertama layer).
+// Layer tanpa keyframe: nilai tetap biasa.
+export const isAnimated = (layer) => Object.values(layer.keys || {}).some((l) => l?.length);
+
+export function writeProp(layer, prop, ct, v, oldV, animatable = true) {
+  if (layer.keys?.[prop]?.length) return setKey(layer, prop, ct, v);
+  if (!animatable || !isAnimated(layer) || JSON.stringify(v) === JSON.stringify(oldV)) {
+    layer.props[prop] = v;
+    return;
+  }
+  const base = allKeyTimes(layer)[0];
+  if (Math.abs(base - ct) >= SAME) setKey(layer, prop, base, oldV);
+  setKey(layer, prop, ct, v);
+}

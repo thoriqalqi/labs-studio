@@ -3,9 +3,9 @@ import { t as tr, langToggle } from '../core/i18n.js';
 import { createStore } from '../store.js';
 import { createAudio } from '../audio.js';
 import { exportVideo, savePoster } from '../core/exportVideo.js';
-import { LAYER_TYPES, getLayerDef } from './registry.js';
+import { LAYER_TYPES, getLayerDef, COMMON_DEFAULTS } from './registry.js';
 import { renderComp, layerCorners, layerFrame, hitTest, isActive, setAssetListener, assets, resolveProps } from './engine.js';
-import { setKey, toContent, toGlobal, neighborKey, allKeyTimes } from './keys.js';
+import { setKey, writeProp, toContent, toGlobal, neighborKey, allKeyTimes } from './keys.js';
 import { newLayer, newId } from './doc.js';
 import { SNIPPETS } from './snippets.js';
 import { createInspector } from './ui/inspector.js';
@@ -418,8 +418,8 @@ const actions = {
   up() { move(-1); },
   down() { move(1); },
   // ---------- keyframe ----------
-  // K: keyframe di playhead untuk semua properti yang sudah beranimasi
-  // (layer belum beranimasi: posisi, skala, rotasi, opacity)
+  // K: keyframe di playhead untuk semua properti yang sudah beranimasi.
+  // Layer belum beranimasi: cukup posisi; sesudah itu perubahan lain otomatis jadi keyframe.
   kadd() {
     const l = selected();
     if (!l) return status('Pilih layer dulu');
@@ -427,7 +427,7 @@ const actions = {
     if (t < l.start - 1e-3 || t > l.start + l.dur + 1e-3) return status('Taruh playhead di dalam layer yang dipilih');
     const def = getLayerDef(l.type);
     let props = Object.keys(l.keys || {}).filter((p) => l.keys[p]?.length);
-    if (!props.length) props = def.audio ? (def.schema || []).filter((f) => f.animatable).map((f) => f.key).slice(0, 1) : ['x', 'y', 'scale', 'rotation', 'opacity'];
+    if (!props.length) props = def.audio ? (def.schema || []).filter((f) => f.animatable).map((f) => f.key).slice(0, 1) : ['x', 'y'];
     if (!props.length) return status('Layer ini tidak punya properti yang bisa dianimasikan');
     store.mutate((d) => {
       const a = selected(d);
@@ -435,7 +435,6 @@ const actions = {
       const p = resolveProps(a, def, ct, d.comp);
       for (const k of props) setKey(a, k, ct, p[k]);
     });
-    timeline.keys.toggleOpen(l.id, true);
     status(`Keyframe ditambahkan (${props.length} properti)`);
   },
   kprev() { jumpKey(-1); },
@@ -472,10 +471,10 @@ function compPoint(e) {
   return [((e.clientX - r.left) * over.width) / r.width, ((e.clientY - r.top) * over.height) / r.height];
 }
 
-// ubah properti di waktu ini: ikut keyframe bila properti itu sudah beranimasi
+// ubah properti di waktu ini: layer yang sudah beranimasi otomatis membuat keyframe (lihat writeProp)
 function setProp(layer, key, contentT, v) {
-  if (layer.keys?.[key]?.length) setKey(layer, key, contentT, v);
-  else layer.props[key] = v;
+  const old = layer.props[key] ?? getLayerDef(layer.type).defaults?.[key] ?? COMMON_DEFAULTS[key];
+  writeProp(layer, key, contentT, v, old);
 }
 
 // kotak sejajar sumbu dari sudut-sudut layer

@@ -39,11 +39,11 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 
 **Crop:** setiap layer punya Crop atas/bawah/kiri/kanan (%) di inspector, dan bisa diberi keyframe.
 
-**Keyframe:** klik ○ di samping properti untuk mulai beranimasi. Setelah itu, setiap kali nilainya diubah di waktu lain, keyframe baru otomatis dibuat (seperti After Effects).
+**Keyframe:** tekan K (atau klik ○ di samping properti) untuk mulai beranimasi. Setelah layer punya keyframe, cukup pindahkan playhead lalu ubah apa saja (geser di kanvas atau ganti nilai di inspector): keyframe otomatis dibuat hanya untuk properti yang diubah.
 
 - Di timeline, ◆ bisa diklik (pilih + lompat ke sana), Shift+klik (pilih beberapa), dan diseret untuk menggeser waktunya (menempel ke playhead dan dibulatkan ke frame). Klik nama properti untuk memilih semua keyframe-nya.
 - Delete menghapus keyframe terpilih. Ctrl+C / Ctrl+V menyalin lalu menempelkannya ke layer terpilih, mulai dari playhead.
-- K menambah keyframe di playhead untuk semua properti yang beranimasi (layer yang belum beranimasi: posisi, skala, rotasi, opacity). J / L lompat ke keyframe sebelum/berikutnya. U membuka baris properti layer terpilih.
+- K menambah keyframe di playhead untuk semua properti yang beranimasi (layer yang belum beranimasi: cukup posisi). J / L lompat ke keyframe sebelum/berikutnya. U membuka baris properti layer terpilih.
 - **Kurva kustom:** klik dua kali ◆, atau tombol kurva di sebelah pilihan easing, untuk mengatur kurva bezier sendiri (ada preset Halus, Melambat, Antisipasi, Melampaui, dll.).
 
 **Teks:** kata di antara `*bintang*` memakai warna aksen, `[kata]` jadi pil bergaris, `{logo}` jadi ikon logo. Animasi khusus teks: per kata dan mesin ketik.

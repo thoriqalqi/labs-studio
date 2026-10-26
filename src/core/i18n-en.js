@@ -729,7 +729,9 @@ const WORDS = {
   'Tajam': 'Sharp',
   'Antisipasi': 'Anticipate',
   'Melampaui': 'Overshoot',
-  'Terapkan': 'Apply'
+  'Terapkan': 'Apply',
+  'Setelah ada keyframe, setiap perubahan di waktu lain otomatis jadi keyframe.':
+    'Once a layer has keyframes, any change at another time becomes a keyframe automatically.'
 };
 
 // pola untuk teks berisi angka / nama (t = penerjemah, untuk bagian yang perlu diterjemahkan juga)

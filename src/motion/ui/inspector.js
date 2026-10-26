@@ -3,7 +3,7 @@
 // ○ = belum beranimasi (klik untuk mulai keyframe). Mengubah nilai properti beranimasi otomatis membuat keyframe.
 import { getLayerDef, COMMON_SCHEMA, COMMON_DEFAULTS } from '../registry.js';
 import { PRESETS } from '../presets.js';
-import { EASE_LABEL, keyIndex, setKey, removeKey } from '../keys.js';
+import { EASE_LABEL, keyIndex, setKey, removeKey, writeProp } from '../keys.js';
 import { editCurves, curveIcon } from './curve.js';
 import { resolveProps } from '../engine.js';
 import { SIZES } from '../doc.js';
@@ -49,6 +49,7 @@ export function createInspector(el, { store, getTime, seek, upload, actions }) {
         Tambah layer dari panel kiri, atau seret file gambar/audio/video ke jendela.<br>
         Klik objek di layar untuk memilih, seret untuk memindahkan.<br>
         ○ di samping properti = mulai animasi (keyframe).<br>
+        Setelah ada keyframe, setiap perubahan di waktu lain otomatis jadi keyframe.<br>
         K keyframe di playhead · J / L keyframe sebelum/berikut · U buka properti di timeline<br>
         Seret ◆ di timeline untuk menggeser, klik dua kali untuk kurva · Ctrl+C/V salin-tempel keyframe<br>
         Spasi putar · ← → mundur/maju 1 frame (Shift: 1 detik)<br>
@@ -169,8 +170,8 @@ export function createInspector(el, { store, getTime, seek, upload, actions }) {
         const current = layer.props?.[a] ?? def.defaults?.[a] ?? COMMON_DEFAULTS[a];
         const v = coerce(input, current);
         const contentT = t - layer.start + (layer.offset || 0);
-        if (layer.keys?.[a]?.length) setKey(layer, a, contentT, v);
-        else layer.props[a] = v;
+        const f = def.schema?.find((x) => x.key === a) || COMMON_SCHEMA.find((x) => x.key === a);
+        writeProp(layer, a, contentT, v, current, !!f?.animatable);
       }
     });
   }
