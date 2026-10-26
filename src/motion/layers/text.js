@@ -168,6 +168,7 @@ export default {
         let dy = 0;
         let visible = true;
         let scatter = null;
+        let clipLine = false;
         if (reveal?.mode === 'chars') {
           const shown = Math.floor(reveal.k * total) - chars;
           if (w.kind === 'word') text = shown <= 0 ? '' : w.text.slice(0, shown);
@@ -182,6 +183,14 @@ export default {
           const fy = (r2 - Math.floor(r2)) * 2 - 1;
           scatter = { dx: fx * p.size * 2.4 * (1 - e), dy: fy * p.size * 1.3 * (1 - e), rot: fx * fy * 0.35 * (1 - e) };
           alpha = Math.min(1, k * 1.6);
+        } else if (reveal?.mode === 'rise') {
+          // tiap kata menyusul ±0,16 bagian setelah kata sebelumnya, naik dari bawah garis baris
+          const gap = 0.16;
+          const x = Math.min(1, Math.max(0, reveal.k * (1 + gap * (nWords - 1)) - wi * gap));
+          const e = 1 - Math.pow(1 - x, 4);
+          dy = (1 - e) * L.lh * 0.95;
+          alpha = Math.min(1, x * 3);
+          clipLine = true;
         } else if (reveal?.mode === 'words') {
           const k = Math.min(1, Math.max(0, reveal.k * (nWords + 2) - wi * 1.0));
           alpha = k;
@@ -191,6 +200,11 @@ export default {
         wi++;
         if (!visible || alpha <= 0 || (w.kind === 'word' && !text)) continue;
         ctx.save();
+        if (clipLine) {
+          ctx.beginPath();
+          ctx.rect(-1e5, y - L.lh * 0.62, 2e5, L.lh * 1.24);
+          ctx.clip();
+        }
         ctx.globalAlpha *= alpha;
         ctx.textAlign = 'left';
         ctx.font = fontFor(p, w.accent && w.kind === 'word');

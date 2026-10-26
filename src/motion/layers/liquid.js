@@ -59,7 +59,8 @@ export default {
       small.width = sw;
       small.height = sh;
     }
-    const g = small.getContext('2d');
+    // kanvas kecil di memori CPU: memperbesarnya ke layar penuh jauh lebih cepat daripada kanvas GPU
+    const g = small.getContext('2d', { willReadFrequently: true });
     const t = env.contentT * p.speed;
     g.globalCompositeOperation = 'source-over';
     g.fillStyle = p.base;

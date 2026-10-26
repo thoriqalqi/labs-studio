@@ -21,7 +21,9 @@ export const PRESETS = {
   flowOut: { label: 'Mengalir keluar (naik + blur)', apply: (k, m) => { m.opacity *= k; m.dy -= (1 - k) * 46; m.blur += (1 - k) * 10; } },
   words: { label: 'Per kata (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'words', k }; } },
   scatter: { label: 'Kata berserakan → tersusun (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'scatter', k }; } },
-  typewriter: { label: 'Mesin ketik (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'chars', k }; } }
+  typewriter: { label: 'Mesin ketik (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'chars', k }; } },
+  // kata demi kata naik dari balik garis baris (tertutup topeng), seperti video promo produk
+  rise: { label: 'Naik per kata, bertopeng (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'rise', k }; } }
 };
 
 const easeOut = (x) => 1 - Math.pow(1 - x, 3);

@@ -539,7 +539,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
       const def = getLayerDef(l0.type);
       const ok = new Set([
         ...(def.schema || []).filter((f) => f.animatable).map((f) => f.key),
-        ...(def.audio ? [] : COMMON_SCHEMA.filter((f) => f.animatable).map((f) => f.key))
+        ...(def.audio || def.noTransform ? [] : COMMON_SCHEMA.filter((f) => f.animatable).map((f) => f.key))
       ]);
       const items = clip.filter((c) => ok.has(c.prop));
       if (!items.length) return { error: 'Properti yang disalin tidak ada di layer ini' };

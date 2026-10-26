@@ -6,7 +6,7 @@
 // Layer dasar (teks, bentuk, gambar, video, audio, latar) jadi layer AE asli yang bisa diedit, lengkap dengan
 // keyframe & easing. Layer khusus studio (liquid, 3D, halftone, …) dirender per layer lalu ditaruh sebagai footage.
 import { getLayerDef, COMMON_DEFAULTS } from '../registry.js';
-import { layerState, resolveProps, renderComp, assets } from '../engine.js';
+import { layerState, resolveProps, renderComp, assets, cameraMatrix } from '../engine.js';
 import { PRESETS } from '../presets.js';
 import { wrappedText } from '../layers/text.js';
 import { audioTimeline } from '../audioTimeline.js';
@@ -253,12 +253,25 @@ export async function exportAfterEffects(doc, { status = () => {}, ctx } = {}) {
     if (c.kind === 'video') factor = 1 / Math.max(1, assets.video(l.id, p0.url)?.el.videoWidth || p0.srcW || p0.w);
     const scaled = c.kind === 'image' || c.kind === 'video';
     const extra = scaled && l.keys?.w?.length ? [[Math.min(...l.keys.w.map((k) => l.start + k.t - (l.offset || 0))), Math.max(...l.keys.w.map((k) => l.start + k.t - (l.offset || 0)))]] : [];
-    const ch = (prop, fn, more = []) => channel({ fn, layer: l, keys: l.keys?.[prop] || [], dense: [...windows, ...more], fps });
+    // kamera studio di atas layer ini: geraknya "dipanggang" ke posisi/skala/rotasi (disampel rapat)
+    const hasCam = doc.layers.some((c2, j) => j < i && c2.type === 'camera' && c2.start < end && c2.start + c2.dur > l.start);
+    const camAt = (t) => (hasCam ? cameraMatrix(doc, i, Math.min(end - 1e-4, Math.max(l.start, t))) : null);
+    const camRange = hasCam ? [[l.start, end]] : [];
+    const pos = (t) => {
+      const s = st(t);
+      const x0 = s.p.x + s.m.dx;
+      const y0 = s.p.y + s.m.dy;
+      const M = camAt(t);
+      return M ? [M[0] * x0 + M[2] * y0 + M[4], M[1] * x0 + M[3] * y0 + M[5]] : [x0, y0];
+    };
+    const camScale = (t) => { const M = camAt(t); return M ? Math.hypot(M[0], M[1]) : 1; };
+    const camRot = (t) => { const M = camAt(t); return M ? (Math.atan2(M[1], M[0]) * 180) / Math.PI : 0; };
+    const ch = (prop, fn, more = []) => channel({ fn, layer: l, keys: l.keys?.[prop] || [], dense: [...windows, ...camRange, ...more], fps });
     Object.assign(spec, {
-      x: ch('x', (t) => { const s = st(t); return s.p.x + s.m.dx; }),
-      y: ch('y', (t) => { const s = st(t); return s.p.y + s.m.dy; }),
-      scale: ch('scale', (t) => { const s = st(t); return s.p.scale * s.m.scale * (scaled ? footW(s.p) * factor : 1); }, extra),
-      rot: ch('rotation', (t) => { const s = st(t); return s.p.rotation + s.m.rotation; }),
+      x: ch('x', (t) => pos(t)[0]),
+      y: ch('y', (t) => pos(t)[1]),
+      scale: ch('scale', (t) => { const s = st(t); return s.p.scale * s.m.scale * camScale(t) * (scaled ? footW(s.p) * factor : 1); }, extra),
+      rot: ch('rotation', (t) => { const s = st(t); return s.p.rotation + s.m.rotation + camRot(t); }),
       op: ch('opacity', (t) => { const s = st(t); return Math.max(0, Math.min(100, s.p.opacity * s.m.opacity)); }),
       blend: p0.blend
     });
@@ -386,7 +399,10 @@ async function renderLayer(doc, l, fps, name, progress) {
   cv.width = doc.comp.width;
   cv.height = doc.comp.height;
   const g = cv.getContext('2d', { willReadFrequently: true });
-  const solo = { ...doc, comp: { ...doc.comp, background: 'transparent' }, layers: [{ ...l, hidden: false, props: { ...l.props, blend: 'source-over' } }] };
+  // kamera yang ada di atas layer ini ikut dibawa, supaya gerak kameranya ikut terekam
+  const idx = doc.layers.indexOf(l);
+  const cams = doc.layers.slice(0, Math.max(0, idx)).filter((c) => c.type === 'camera');
+  const solo = { ...doc, comp: { ...doc.comp, background: 'transparent' }, layers: [...cams, { ...l, hidden: false, props: { ...l.props, blend: 'source-over' } }] };
   const f0 = Math.ceil(l.start * fps - 1e-6);
   const f1 = Math.ceil(Math.min(l.start + l.dur, doc.comp.duration) * fps - 1e-6);
   if (f1 <= f0) return null;

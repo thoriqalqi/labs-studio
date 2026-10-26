@@ -428,7 +428,11 @@ const actions = {
     if (t < l.start - 1e-3 || t > l.start + l.dur + 1e-3) return status('Taruh playhead di dalam layer yang dipilih');
     const def = getLayerDef(l.type);
     let props = Object.keys(l.keys || {}).filter((p) => l.keys[p]?.length);
-    if (!props.length) props = def.audio ? (def.schema || []).filter((f) => f.animatable).map((f) => f.key).slice(0, 1) : ['x', 'y'];
+    if (!props.length) {
+      const own = (def.schema || []).filter((f) => f.animatable).map((f) => f.key);
+      // audio: satu properti; kamera: zoom & geser; layer biasa: posisi
+      props = def.audio ? own.slice(0, 1) : def.noTransform ? own.slice(0, 3) : ['x', 'y'];
+    }
     if (!props.length) return status('Layer ini tidak punya properti yang bisa dianimasikan');
     store.mutate((d) => {
       const a = selected(d);

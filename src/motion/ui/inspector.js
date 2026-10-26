@@ -97,7 +97,7 @@ export function createInspector(el, { store, getTime, seek, upload, actions }) {
     const groups = {};
     for (const f of COMMON_SCHEMA) (groups[f.group] = groups[f.group] || []).push(f);
     const animOpts = Object.fromEntries(Object.entries(PRESETS).filter(([, v]) => !v.textOnly || layer.type === 'text').map(([k, v]) => [k, v.label]));
-    const visual = !def.audio;
+    const visual = !def.audio && !def.noTransform; // kamera & audio: tanpa transform / animasi masuk-keluar
     return `
       <div class="insp-head">
         <input class="name" type="text" data-f="l:name" value="${esc(layer.name)}" aria-label="Nama layer">

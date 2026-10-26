@@ -24,7 +24,7 @@ export const assets = {
   },
   async preload(doc) {
     // gambar dari layer apa pun yang punya url (image, lanskap, layar 3D, …), kecuali media bersuara/video
-    const urls = doc.layers.filter((l) => l.props?.url && !['audio', 'video', 'sfx'].includes(l.type)).map((l) => l.props.url);
+    const urls = doc.layers.filter((l) => l.props?.url && !['audio', 'video', 'sfx'].includes(l.type) && !usesVideo(l)).map((l) => l.props.url);
     await Promise.all(urls.map((u) => new Promise((r) => {
       assets.image(u);
       const e = images.get(u);
@@ -32,7 +32,7 @@ export const assets = {
       e.img.addEventListener('load', r, { once: true });
       e.img.addEventListener('error', r, { once: true });
     })));
-    await Promise.all(doc.layers.filter((l) => l.type === 'video' && l.props?.url).map((l) => videoReady(l.id, l.props.url)));
+    await Promise.all(doc.layers.filter((l) => usesVideo(l) && l.props?.url).map((l) => videoReady(l.id, l.props.url)));
   },
 
   // ---------- video ----------
@@ -77,7 +77,7 @@ export const assets = {
   async seekAll(doc, t) {
     const jobs = [];
     for (const l of doc.layers) {
-      if (l.type !== 'video' || !isActive(l, t)) continue;
+      if (!usesVideo(l) || !isActive(l, t)) continue;
       const e = assets.video(l.id, l.props?.url);
       if (!e) continue;
       const time = videoTime(l, t, e.el.duration);
@@ -94,6 +94,14 @@ export const assets = {
 };
 
 const videos = new Map();
+
+// layer yang memutar video: jenis 'video', atau jenis lain yang definisinya punya usesVideo(props)
+// (mis. mockup HP berisi rekaman layar). Video-nya memakai props.in & props.speed seperti layer Video.
+export function usesVideo(l) {
+  if (l.type === 'video') return true;
+  const def = getLayerDef(l.type);
+  return !!def?.usesVideo?.({ ...def.defaults, ...l.props });
+}
 
 function videoReady(key, url) {
   const e = assets.video(key, url);
@@ -131,12 +139,78 @@ export function layerState(doc, layer, t, ctx) {
   const p = resolveProps(layer, def, contentT, doc.comp);
   const m = applyAnim(layer.anim, vt, layer.dur, { opacity: 1, dx: 0, dy: 0, scale: 1, rotation: 0, blur: 0, reveal: null });
   const env = { t, vt, contentT, layer, comp: doc.comp, reveal: m.reveal, assets, ctx };
-  const size = def.size ? def.size(p, env) : { w: 200, h: 200 };
+  // size() boleh mengukur teks dengan ctx; simpan/pulihkan supaya font & jarak huruf tidak bocor ke layer lain
+  let size = { w: 200, h: 200 };
+  if (def.size) {
+    ctx?.save();
+    try {
+      size = def.size(p, env);
+    } finally {
+      ctx?.restore();
+    }
+  }
   return { def, p, m, env, size };
 }
 
+// ---------- kamera ----------
+// Layer jenis 'camera' (tanpa gambar) menggerakkan semua layer yang ada DI BAWAHNYA di daftar layer selama
+// ia aktif: zoom, geser, miring (roll), getar halus. Layer layar penuh (latar) hanya ikut sebagian (bgDepth),
+// jadi ada kesan kedalaman. Matriks [a, b, c, d, e, f] seperti ctx.transform().
+const mul = (A, B) => [
+  A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1],
+  A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3],
+  A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]
+];
+
+function cameraList(doc, t) {
+  const out = [];
+  const def = getLayerDef('camera');
+  if (!def) return out;
+  doc.layers.forEach((c, index) => {
+    if (c.type !== 'camera' || !isActive(c, t)) return;
+    const p = resolveProps(c, def, t - c.start + (c.offset || 0), doc.comp);
+    const mk = (k) => {
+      // getar halus: jumlah gelombang sinus (pasti sama tiap kali dihitung → aman untuk ekspor)
+      const sh = (p.shake || 0) * k;
+      const sx = sh * (Math.sin(t * 7.3) + 0.6 * Math.sin(t * 11.7 + 1.3)) * 4;
+      const sy = sh * (Math.sin(t * 6.1 + 0.7) + 0.6 * Math.sin(t * 13.3 + 2.1)) * 4;
+      const z = Math.max(0.05, 1 + (p.zoom / 100 - 1) * k);
+      const rot = ((p.roll * k + sh * Math.sin(t * 5.3 + 0.4) * 0.25) * Math.PI) / 180;
+      const cx = doc.comp.width / 2;
+      const cy = doc.comp.height / 2;
+      const a = Math.cos(rot) * z;
+      const b = Math.sin(rot) * z;
+      // geser kamera ke kanan = isi bergeser ke kiri
+      const ex = cx - p.panX * k + sx;
+      const ey = cy - p.panY * k + sy;
+      return [a, b, -b, a, ex - (a * cx - b * cy), ey - (b * cx + a * cy)];
+    };
+    out.push({ index, full: mk(1), bg: mk(Math.max(0, Math.min(1, p.bgDepth))) });
+  });
+  return out;
+}
+
+function composeCam(cams, index, fullFrame) {
+  let M = null;
+  for (const c of cams) {
+    if (c.index >= index) break;
+    const m = fullFrame ? c.bg : c.full;
+    M = M ? mul(M, m) : m;
+  }
+  return M;
+}
+
+// transform kamera untuk layer di posisi index pada waktu t (null = tanpa kamera)
+export function cameraMatrix(doc, index, t) {
+  const cams = cameraList(doc, t);
+  if (!cams.length) return null;
+  return composeCam(cams, index, !!getLayerDef(doc.layers[index]?.type)?.fullFrame);
+}
+const applyCam = (M, x, y) => (M ? [M[0] * x + M[2] * y + M[4], M[1] * x + M[3] * y + M[5]] : [x, y]);
+
 export function renderComp(ctx, doc, t) {
   const { width: W, height: H, background } = doc.comp;
+  const cams = cameraList(doc, t);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
@@ -162,12 +236,14 @@ export function renderComp(ctx, doc, t) {
     }
     ctx.globalCompositeOperation = p.blend || 'source-over';
     const blur = p.blur + m.blur;
+    const cam = cams.length ? composeCam(cams, i, !!def.fullFrame) : null;
     // f = skala kanvas tempat menggambar (1 = langsung; >1 = kanvas kecil untuk blur)
     const paint = (g, f) => {
       if (p.shadow > 0) {
         g.shadowBlur = p.shadow / f;
         g.shadowColor = p.shadowColor;
       }
+      if (cam) g.transform(...cam);
       g.translate(p.x + m.dx, p.y + m.dy);
       g.rotate(((p.rotation + m.rotation) * Math.PI) / 180);
       const s = (p.scale / 100) * m.scale;
@@ -245,18 +321,23 @@ export function layerCorners(doc, layer, t, ctx) {
   const cx = p.x + m.dx;
   const cy = p.y + m.dy;
   const { x0, x1, y0, y1 } = cropRect(p, size);
-  return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => [
+  const cam = cameraMatrix(doc, doc.layers.indexOf(layer), t);
+  return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => applyCam(cam,
     cx + x * s * Math.cos(r) - y * s * Math.sin(r),
     cy + x * s * Math.sin(r) + y * s * Math.cos(r)
-  ]);
+  ));
 }
 
-// transform layer saat ini (untuk menyeret titik skala/crop di kanvas)
+// transform layer saat ini (untuk menyeret titik skala/crop di kanvas), sudah termasuk kamera
 export function layerFrame(doc, layer, t, ctx) {
   const st = layerState(doc, layer, t, ctx);
   if (!st) return null;
   const { p, m, size } = st;
-  return { cx: p.x + m.dx, cy: p.y + m.dy, s: (p.scale / 100) * m.scale, r: ((p.rotation + m.rotation) * Math.PI) / 180, size, p, animScale: m.scale };
+  const cam = cameraMatrix(doc, doc.layers.indexOf(layer), t);
+  const [cx, cy] = applyCam(cam, p.x + m.dx, p.y + m.dy);
+  const cs = cam ? Math.hypot(cam[0], cam[1]) : 1;
+  const cr = cam ? Math.atan2(cam[1], cam[0]) : 0;
+  return { cx, cy, s: (p.scale / 100) * m.scale * cs, r: ((p.rotation + m.rotation) * Math.PI) / 180 + cr, size, p, animScale: m.scale * cs };
 }
 
 export function hitTest(doc, t, x, y, ctx) {
