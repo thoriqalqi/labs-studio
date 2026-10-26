@@ -425,6 +425,20 @@ const TOOLS = [
     }
   },
   {
+    name: 'export_after_effects',
+    description: 'Export the motion project for Adobe After Effects: writes output/<id>-after-effects/ with a .jsx script, a media/ folder and BACA-SAYA.txt. In AE run File > Scripts > Run Script File… on the .jsx to rebuild the composition. Text, shapes, images, video, audio and backgrounds become editable AE layers with their keyframes and easing; studio-only layers (liquid, 3D, halftone, text with pills/logo, cropped layers…) are pre-rendered as transparent ProRes 4444 video. Rendering those can take several minutes. Needs an open studio tab and ffmpeg.',
+    inputSchema: { type: 'object', properties: { project: S.project }, required: ['project'] },
+    async run(a) {
+      const r = await api.bridge('exportAfterEffects', { id: a.project }, 3600);
+      const lines = [`After Effects export ready: ${r.script}`, `Editable layers: ${r.native}`];
+      if (r.rendered.length) lines.push(`Pre-rendered as video: ${r.rendered.map((x) => `${x.name} (${x.why})`).join(', ')}`);
+      if (r.fonts.length) lines.push(`Fonts the user needs installed: ${r.fonts.join(', ')}`);
+      if (r.notes.length) lines.push(`Notes: ${r.notes.join('; ')}`);
+      lines.push('Tell the user: in After Effects choose File > Scripts > Run Script File… and pick the .jsx, then save as .aep.');
+      return text(lines.join('\n'));
+    }
+  },
+  {
     name: 'export_audio',
     description: 'Export only the mixed audio (voice, audio layers, SFX) as MP3 + WAV in output/. Needs an open studio tab.',
     inputSchema: { type: 'object', properties: { project: S.project }, required: ['project'] },

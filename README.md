@@ -15,6 +15,7 @@ Layers, keyframes, easing, text animation, 3D scenes, voice over, sound effects,
 - **Templates:** blank, kinetic text, 3D character, liquid-gradient app intro, editorial promo (about 60 s, with voice-over timing), a one-shot "Building Indonesia" world build (a command typed in the level editor → the Lake Toba highlands rise → the camera flies down a street between the towers of a lakeside city → orbit over the archipelago), and a script-to-video chibi episode editor.
 - **Audio:** import audio/video (video tracks stay visual, the sound goes to its own layer), speed and trim, synthesized SFX with no audio files, and optional **ElevenLabs** voice over that runs through the local server so your key never reaches the browser.
 - **Export:** MP4 (WebCodecs H.264 + ffmpeg mux, frame-accurate), audio (MP3 + WAV), and PNG frames.
+- **After Effects export:** writes `output/<id>-after-effects/` with a `.jsx` script and a `media/` folder. In AE run *File → Scripts → Run Script File…* to rebuild the composition. Text, shapes, images, video, audio and backgrounds become editable AE layers with their keyframes and easing (custom curves included); studio-only layers are pre-rendered per layer as transparent ProRes 4444. So Claude drafts the video here, you edit and render fast locally, and you can still finish it in After Effects.
 - **Local and private:** projects are plain JSON files in this folder.
 
 ## Requirements
@@ -65,6 +66,7 @@ Labs Studio ships an [MCP](https://modelcontextprotocol.io) server (`plugins/lab
 | `add_layer`, `update_layer`, `set_keyframes`, `move_layer`, `remove_layer`, `update_composition` | Edit the composition |
 | `render_frames` | Render one frame or a labelled contact sheet and return it as an image |
 | `export_video`, `export_audio` | Export MP4 / MP3 + WAV to `output/` |
+| `export_after_effects` | After Effects folder (`.jsx` script + media) in `output/` |
 | `list_voices`, `generate_voice` | ElevenLabs voice over (uses your paid quota, so Claude asks first) |
 
 **Claude Code plugin (recommended):** installs the MCP server plus skills: a Labs Studio guide Claude loads on its own, and the commands `/labs-studio:make-video`, `/labs-studio:render-check`, `/labs-studio:new-layer` and `/labs-studio:new-template`. In Claude Code (2.1.275 or later):

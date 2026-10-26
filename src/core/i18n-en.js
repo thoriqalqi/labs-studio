@@ -730,6 +730,21 @@ const WORDS = {
   'Antisipasi': 'Anticipate',
   'Melampaui': 'Overshoot',
   'Terapkan': 'Apply',
+  // ---------- ekspor After Effects ----------
+  'Ekspor ke After Effects (skrip .jsx + folder media)': 'Export to After Effects (.jsx script + media folder)',
+  'Menyiapkan ekspor After Effects…': 'Preparing the After Effects export…',
+  'Merender efek suara…': 'Rendering sound effects…',
+  'Folder After Effects siap:': 'After Effects folder ready:',
+  'Di After Effects: File > Scripts > Run Script File… lalu pilih file .jsx di folder itu.':
+    'In After Effects: File > Scripts > Run Script File… and pick the .jsx file in that folder.',
+  'Layer yang bisa diedit:': 'Editable layers:',
+  'Dirender jadi video:': 'Pre-rendered as video:',
+  'Font yang perlu terpasang:': 'Fonts to install:',
+  'layer khusus studio': 'studio-only layer',
+  'teks khusus': 'special text',
+  'bentuk beranimasi': 'animated shape path',
+  'sudut membulat': 'rounded corners',
+  'crop': 'crop',
   'Setelah ada keyframe, setiap perubahan di waktu lain otomatis jadi keyframe.':
     'Once a layer has keyframes, any change at another time becomes a keyframe automatically.'
 };
@@ -767,6 +782,9 @@ export function buildPatterns(t) {
     [/^Kalimat (\d+)$/, 'Line $1'],
     [/^Keyframe di ([\d.]+) detik$/, 'Keyframe at $1 seconds'],
     [/^([\d.]+) dtk$/, '$1 s'],
+    [/^Merender layer (\d+)\/(\d+) untuk After Effects: (.+) (\d+)%$/, 'Rendering layer $1/$2 for After Effects: $3 $4%'],
+    [/^After Effects siap: (.+)$/, 'After Effects ready: $1'],
+    [/^Ekspor After Effects gagal: ([\s\S]*)$/, 'After Effects export failed: $1'],
     [/^(.+) · ([\d.]+) dtk$/, (p, n) => `${t(p)} · ${n} s`],
     [/^Keyframe ditambahkan \((\d+) properti\)$/, (n) => `Keyframe added (${n} propert${n === '1' ? 'y' : 'ies'})`],
     [/^(\d+) keyframe disalin$/, (n) => `${n} keyframe${n === '1' ? '' : 's'} copied`],

@@ -9,6 +9,7 @@ import { TEMPLATES } from '../templates/index.js';
 import { audioTimeline } from '../motion/audioTimeline.js';
 import { exportVideo } from './exportVideo.js';
 import { createAudio } from '../audio.js';
+import { exportAfterEffects } from '../motion/ae/export.js';
 
 const getDoc = async (id) => {
   const res = await fetch(`/api/docs/motion/${encodeURIComponent(id)}`);
@@ -132,6 +133,12 @@ const ops = {
     } finally {
       assets.exporting = false;
     }
+  }),
+
+  exportAfterEffects: ({ id }) => exclusive(async () => {
+    const doc = await getDoc(id);
+    const ctx = stageFor(doc).getContext('2d');
+    return exportAfterEffects(doc, { ctx });
   }),
 
   exportAudio: ({ id }) => exclusive(async () => {

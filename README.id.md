@@ -66,7 +66,12 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 
 **Pintasan:** Spasi putar · ← → 1 frame (Shift: 1 detik) · Home ke awal · S potong layer · Delete / Backspace hapus layer (atau keyframe terpilih) · Ctrl+D duplikat · K tambah keyframe · J / L keyframe sebelum/berikut · U buka properti · Ctrl+C / Ctrl+V salin-tempel keyframe · Ctrl+Z / Ctrl+Y · Esc lepas pilihan.
 
-**Ekspor:** MP4 (`output/<id>.mp4`), audio saja (MP3 + WAV), dan frame PNG.
+**Ekspor:** MP4 (`output/<id>.mp4`), audio saja (MP3 + WAV), frame PNG, dan **After Effects**.
+
+**Ekspor After Effects:** tombol *After Effects* membuat folder `output/<id>-after-effects/` berisi skrip `.jsx`, folder `media/`, dan `BACA-SAYA.txt`. Di After Effects pilih *File → Scripts → Run Script File…* lalu pilih file `.jsx` itu: komposisi tersusun otomatis, lalu simpan jadi `.aep`.
+- Teks, bentuk, gambar, video, audio, dan latar jadi layer AE asli yang bisa diedit, lengkap dengan keyframe dan easing (termasuk kurva kustom). Animasi masuk/keluar diubah jadi keyframe.
+- Layer khusus studio (liquid, 3D, halftone, teks dengan [pil]/{logo}/animasi per kata, layer yang di-crop, dll.) dirender per layer jadi video ProRes 4444 transparan: tampilannya sama, isinya tidak bisa diedit.
+- Efek suara digabung jadi satu file WAV. Font perlu terpasang di komputer yang membuka AE (warna *kata aksen* otomatis butuh AE 24.3+).
 
 ## Dikendalikan Claude (MCP)
 
@@ -80,6 +85,7 @@ Labs Studio punya MCP server (`plugins/labs-studio/mcp/labs-studio-mcp.mjs`, tan
 | `add_layer`, `update_layer`, `set_keyframes`, `move_layer`, `remove_layer`, `update_composition` | edit komposisi |
 | `render_frames` | render 1 frame atau lembar beberapa frame (berlabel waktu) sebagai gambar |
 | `export_video`, `export_audio` | ekspor MP4 / MP3 + WAV ke `output/` |
+| `export_after_effects` | folder After Effects (skrip `.jsx` + media) ke `output/` |
 | `list_voices`, `generate_voice` | voice over ElevenLabs (memakai kuota berbayar, jadi Claude bertanya dulu) |
 
 **Plugin Claude Code (disarankan):** memasang MCP server sekaligus skill: panduan Labs Studio yang dimuat Claude sendiri, plus perintah `/labs-studio:make-video`, `/labs-studio:render-check`, `/labs-studio:new-layer`, dan `/labs-studio:new-template`. Di Claude Code (2.1.275 ke atas):

@@ -9,7 +9,8 @@ import { setKey, writeProp, toContent, toGlobal, neighborKey, allKeyTimes } from
 import { newLayer, newId } from './doc.js';
 import { SNIPPETS } from './snippets.js';
 import { createInspector } from './ui/inspector.js';
-import { ask } from '../core/dialog.js';
+import { ask, tell } from '../core/dialog.js';
+import { exportAfterEffects } from './ae/export.js';
 import { openVoiceDialog } from '../core/voiceover.js';
 import { createTimeline } from './ui/timeline.js';
 import { audioTimeline as buildAudioTimeline } from './audioTimeline.js';
@@ -720,6 +721,19 @@ $('export-audio').onclick = () => guard('Ekspor audio', async () => {
   const out = await res.json();
   if (!res.ok) throw new Error(out.error);
   status(`Audio selesai: ${out.files.join(' · ')}`);
+});
+
+$('export-ae').onclick = () => guard('Ekspor After Effects', async () => {
+  const r = await exportAfterEffects(doc(), { status, ctx });
+  status(`After Effects siap: ${r.script}`);
+  const lines = [
+    tr('Folder After Effects siap:'), r.dir, '',
+    tr('Di After Effects: File > Scripts > Run Script File… lalu pilih file .jsx di folder itu.'), '',
+    `${tr('Layer yang bisa diedit:')} ${r.native}`
+  ];
+  if (r.rendered.length) lines.push(`${tr('Dirender jadi video:')} ${r.rendered.map((x) => `${x.name} (${tr(x.why)})`).join(', ')}`);
+  if (r.fonts.length) lines.push(`${tr('Font yang perlu terpasang:')} ${r.fonts.join(', ')}`);
+  await tell(lines.join('\n'));
 });
 
 $('export-frame').onclick = () => guard('Simpan frame', async () => {

@@ -142,8 +142,12 @@ export function renderComp(ctx, doc, t) {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   ctx.filter = 'none';
-  ctx.fillStyle = background || '#000000';
-  ctx.fillRect(0, 0, W, H);
+  // 'transparent' = tanpa latar (dipakai ekspor After Effects untuk merender satu layer bertransparansi)
+  if (background === 'transparent') ctx.clearRect(0, 0, W, H);
+  else {
+    ctx.fillStyle = background || '#000000';
+    ctx.fillRect(0, 0, W, H);
+  }
   for (let i = doc.layers.length - 1; i >= 0; i--) {
     const layer = doc.layers[i];
     if (!isActive(layer, t)) continue;

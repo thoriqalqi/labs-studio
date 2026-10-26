@@ -16,6 +16,7 @@ import path from 'node:path';
 //   /api/export/...    frame/H.264 + audio → output/<id>.mp4 via ffmpeg
 //   /api/export-audio  WAV → output/<id>.mp3 + .wav
 //   /api/save-image    thumbnail / branding → output/
+//   /api/ae/...        ekspor After Effects → output/<id>-after-effects/ (skrip .jsx + media/)
 //   /api/bridge        perintah ke tab studio yang terbuka (render frame, ekspor, template) — dipakai MCP server
 
 function readBody(req) {
@@ -468,6 +469,98 @@ function studioPlugin() {
           fs.writeFileSync(wav, await readBody(req));
           await run(['-y', '-i', wav, '-c:a', 'libmp3lame', '-b:a', '192k', mp3]);
           json(res, 200, { ok: true, files: [path.relative(process.cwd(), mp3), path.relative(process.cwd(), wav)] });
+        } catch (err) {
+          json(res, 500, { error: err.message });
+        }
+      });
+
+      // ---------- ekspor After Effects ----------
+      // Browser menerjemahkan proyek jadi skrip .jsx; server menyiapkan foldernya, menyalin media,
+      // dan mengubah frame PNG layer khusus jadi video ProRes 4444 bertransparansi.
+      let ae = null;
+      server.middlewares.use('/api/ae/', async (req, res) => {
+        try {
+          const route = req.url.split('?')[0].replace(/^\//, '');
+          if (route === 'start') {
+            const cfg = JSON.parse((await readBody(req)).toString() || '{}');
+            const dir = path.resolve('output', `${safeId(cfg.name) || 'proyek'}-after-effects`);
+            ae?.seq?.ff?.kill();
+            try {
+              fs.rmSync(dir, { recursive: true, force: true });
+            } catch (e) {
+              if (e.code === 'EBUSY' || e.code === 'EPERM') {
+                return json(res, 409, { error: `Folder ${path.relative(process.cwd(), dir)} sedang dipakai program lain (mis. After Effects). Tutup dulu, lalu ekspor lagi.` });
+              }
+              throw e;
+            }
+            fs.mkdirSync(path.join(dir, 'media'), { recursive: true });
+            ae = { dir };
+            return json(res, 200, { ok: true, dir: path.relative(process.cwd(), dir), ffmpeg: hasFfmpeg });
+          }
+          if (!ae) return json(res, 400, { error: 'Ekspor After Effects belum dimulai' });
+          // salin file dari media/ (unggahan) ke folder ekspor
+          if (route === 'copy') {
+            const { url, as } = JSON.parse((await readBody(req)).toString() || '{}');
+            const root = path.resolve('media');
+            const src = path.resolve(root, decodeURIComponent(String(url).replace(/^\/media\//, '').split('?')[0]));
+            if (!src.startsWith(root + path.sep) || !fs.existsSync(src)) return json(res, 404, { error: `File tidak ditemukan: ${url}` });
+            const name = safeName(as);
+            fs.copyFileSync(src, path.join(ae.dir, 'media', name));
+            return json(res, 200, { ok: true, file: `media/${name}` });
+          }
+          // tulis file (media/<nama>, atau di akar folder bila root=1)
+          if (route === 'file') {
+            const name = safeName(query(req, 'name'));
+            if (!name) return json(res, 400, { error: 'Nama file kosong' });
+            const rel = query(req, 'root') ? name : `media/${name}`;
+            fs.writeFileSync(path.join(ae.dir, rel), await readBody(req));
+            return json(res, 200, { ok: true, file: rel });
+          }
+          if (route === 'seq-start') {
+            if (!hasFfmpeg) return json(res, 500, { error: FFMPEG_MISSING });
+            const cfg = JSON.parse((await readBody(req)).toString() || '{}');
+            // butuh transparansi → ProRes 4444 (alpha); layer yang menutupi penuh → H.264 (jauh lebih kecil)
+            const alpha = cfg.alpha !== false;
+            const name = `${safeId(cfg.name) || 'render'}.${alpha ? 'mov' : 'mp4'}`;
+            const fps = Math.max(1, Math.min(60, Number(cfg.fps) || 30));
+            const w = Math.max(2, Math.min(8192, parseInt(cfg.width, 10) || 1920));
+            const h = Math.max(2, Math.min(8192, parseInt(cfg.height, 10) || 1080));
+            // frame dikirim sebagai piksel RGBA mentah (encode PNG di browser terlalu lambat untuk gradien)
+            const ff = spawn('ffmpeg', [
+              '-y', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${w}x${h}`, '-framerate', String(fps), '-i', '-',
+              ...(alpha
+                ? ['-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-alpha_bits', '16', '-qscale:v', '6', '-vendor', 'apl0']
+                : ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart']),
+              path.join(ae.dir, 'media', name)
+            ], { stdio: ['pipe', 'ignore', 'pipe'] });
+            let err = '';
+            ff.stderr.on('data', (d) => { err = (err + d).slice(-3000); });
+            ff.on('error', () => {});
+            ff.stdin.on('error', () => {}); // EPIPE bila ffmpeg berhenti duluan; ditangani di seq-frame
+            ae.seq = { ff, file: `media/${name}`, done: once(ff, 'close'), err: () => err };
+            return json(res, 200, { ok: true });
+          }
+          if (route === 'seq-frame') {
+            const body = await readBody(req);
+            if (!ae.seq) return json(res, 400, { error: 'Render layer belum dimulai' });
+            const { ff } = ae.seq;
+            // ffmpeg sudah berhenti → laporkan, jangan menunggu selamanya
+            const dead = () => json(res, 500, { error: `ffmpeg berhenti: ${ae.seq.err().split(/\r?\n/).slice(-3).join(' ')}` });
+            if (ff.exitCode !== null) return dead();
+            if (!ff.stdin.write(body)) await Promise.race([once(ff.stdin, 'drain'), ae.seq.done]);
+            if (ff.exitCode !== null) return dead();
+            return json(res, 200, { ok: true });
+          }
+          if (route === 'seq-finish') {
+            const seq = ae.seq;
+            if (!seq) return json(res, 400, { error: 'Render layer belum dimulai' });
+            seq.ff.stdin.end();
+            const [code] = await seq.done;
+            ae.seq = null;
+            if (code !== 0) return json(res, 500, { error: `ffmpeg gagal membuat ${seq.file}: ${seq.err().split(/\r?\n/).slice(-4).join(' ')}` });
+            return json(res, 200, { ok: true, file: seq.file });
+          }
+          return json(res, 404, { error: 'Tidak dikenal' });
         } catch (err) {
           json(res, 500, { error: err.message });
         }

@@ -80,6 +80,23 @@ function layout(ctx, p) {
   return { lines, lh, w: Math.max(1, ...lines.map((l) => l.w)), h: lines.length * lh };
 }
 
+// baris teks setelah dibungkus, tanpa tanda *aksen* (untuk ekspor After Effects).
+// ranges = rentang huruf kata aksen di teks gabungan (baris dipisah satu karakter \r).
+export function wrappedText(ctx, p) {
+  const L = layout(ctx, p);
+  let text = '';
+  const ranges = [];
+  L.lines.forEach((line, i) => {
+    if (i) text += '\r';
+    line.words.forEach((w, j) => {
+      if (j) text += ' ';
+      if (w.accent && w.kind === 'word') ranges.push([text.length, text.length + w.text.length]);
+      text += w.text;
+    });
+  });
+  return { text, ranges };
+}
+
 export default {
   type: 'text',
   name: 'Teks',

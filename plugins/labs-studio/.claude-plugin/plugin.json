@@ -1,7 +1,7 @@
 {
   "name": "labs-studio",
   "displayName": "Labs Studio",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Make and edit motion-graphics videos in Labs Studio: Claude edits layers and keyframes, renders frames to check its work, and exports MP4.",
   "author": {
     "name": "thoriqalqi",

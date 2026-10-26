@@ -92,6 +92,13 @@ Template `kind: 'chibi'` membuat episode chibi (lihat `episode-chibi.js`).
 - Easing tersedia di `src/motion/keys.js` (`EASINGS`).
 - Layer audio: `props.in` = detik awal di file, panjang diputar = `dur × speed`.
 
+## Ekspor After Effects
+
+- `src/motion/ae/export.js` menerjemahkan proyek jadi `output/<id>-after-effects/` (skrip `.jsx` + `media/` + `BACA-SAYA.txt`); `src/motion/ae/runtime.js` = bagian tetap skrip yang jalan di AE. **Runtime itu ExtendScript (ES3)**: tanpa `let/const`, arrow, `forEach`, template string; teks non-ASCII ditulis `\uXXXX`.
+- `classify()` memilah layer: `text/shape/image/video/background/audio` jadi layer AE asli (keyframe + easing dikonversi ke speed/influence; animasi masuk/keluar & easing bounce/flow disampel rapat); selain itu dirender sendirian per layer (`background: 'transparent'` di `renderComp`) → ProRes 4444 bila butuh alpha, H.264 bila menutupi penuh. Efek suara digabung jadi satu WAV.
+- Jenis layer baru otomatis ikut sebagai layer yang dirender. Kalau ingin jadi layer AE asli, tambahkan kasusnya di `classify()` + pembangunnya di runtime.
+- Endpoint server: `/api/ae/start|copy|file|seq-start|seq-frame|seq-finish` (frame dikirim sebagai RGBA mentah; encode PNG di browser terlalu lambat).
+
 ## MCP server (Claude mengendalikan studio)
 
 - `plugins/labs-studio/mcp/labs-studio-mcp.mjs`: MCP stdio tanpa dependensi, terdaftar lewat `.mcp.json`. Mendukung protokol modern (2026-07-28: `server/discover` + `_meta` per request) dan lama (`initialize`). Jangan menulis apa pun ke stdout selain pesan JSON-RPC (log ke stderr).
