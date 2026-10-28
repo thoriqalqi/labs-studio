@@ -1,4 +1,52 @@
-body.motion { grid-template-columns: 230px minmax(0, 1fr) 330px; }
+body.motion { grid-template-columns: 64px minmax(0, 1fr) 330px; }
+
+/* toolbar kiri (ikon) + panel "Semua layer" yang melayang */
+body.motion .scenes { overflow-x: hidden; overflow-y: auto; scrollbar-width: none; align-items: center; gap: 2px; padding: 8px 0; }
+body.motion .scenes::-webkit-scrollbar { display: none; }
+.scenes .rail-btn { flex: none; width: 54px; height: 52px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 10px; background: transparent; border: 1px solid transparent; box-shadow: none; color: var(--muted); font-family: var(--mono); font-size: 9.5px; line-height: 1; white-space: nowrap; }
+.scenes .rail-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); border-color: transparent; }
+.scenes .rail-btn.on { color: var(--text); background: rgba(166, 162, 255, 0.12); border-color: rgba(166, 162, 255, 0.3); }
+.rail-sep { width: 30px; height: 1px; background: var(--line); margin: 6px 0; flex: none; }
+.rail-fill { flex: 1; }
+.pal-pop { position: fixed; left: 72px; top: 60px; bottom: calc(var(--tl-h) + 8px); width: 300px; z-index: 40; overflow: auto; background: var(--panel-solid); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35); }
+.pal-pop[hidden] { display: none; }
+
+/* menu Audio: tab Musik / SFX / Impor + baris pratinjau */
+.aud-pop { width: 320px; display: flex; flex-direction: column; overflow: hidden; }
+.aud-tabs { display: flex; gap: 4px; padding: 0 12px 8px; border-bottom: 1px solid var(--line); }
+.aud-tabs button { flex: 1; height: 30px; padding: 0 8px; font-size: 12px; border-radius: 8px; background: transparent; border-color: transparent; box-shadow: none; color: var(--muted); }
+.aud-tabs button:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+.aud-tabs button.on { color: var(--text); background: rgba(255, 255, 255, 0.07); border-color: var(--line-2); }
+.aud-tabs em { font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--faint); margin-left: 4px; }
+.aud-body { flex: 1; min-height: 0; overflow: auto; gap: 2px; }
+.aud-search { width: 100%; height: 30px; margin: 4px 0 2px; }
+.aud-list { display: flex; flex-direction: column; gap: 2px; }
+.aud-row { position: relative; display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: 8px; overflow: hidden; }
+.aud-row:hover { background: rgba(255, 255, 255, 0.04); }
+.aud-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--pos, 0%); background: rgba(166, 162, 255, 0.12); pointer-events: none; transition: width 120ms linear; }
+.aud-row button { position: relative; height: 28px; border: none; background: transparent; box-shadow: none; }
+.aud-row .aud-play, .aud-row .aud-add { flex: none; width: 28px; padding: 0; display: grid; place-items: center; border-radius: 7px; color: var(--muted); }
+.aud-row .aud-play:hover, .aud-row .aud-add:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+.aud-row .aud-play svg:last-child { display: none; }
+.aud-row.playing .aud-play { color: var(--accent); }
+.aud-row.playing .aud-play svg:first-child { display: none; }
+.aud-row.playing .aud-play svg:last-child { display: block; }
+.aud-row .aud-name { flex: 1; min-width: 0; padding: 0 4px; text-align: left; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.aud-row .aud-name:hover { background: transparent; }
+.aud-row .aud-add { opacity: 0.55; }
+.aud-row:hover .aud-add, .aud-row.playing .aud-add { opacity: 1; }
+
+/* timeline: garis tarik tinggi + judul kelompok */
+.tl-grip { flex: none; height: 8px; margin-top: -4px; cursor: ns-resize; position: relative; z-index: 6; touch-action: none; }
+.tl-grip::after { content: ''; position: absolute; left: 50%; top: 2px; width: 44px; height: 4px; margin-left: -22px; border-radius: 2px; background: var(--line-2); }
+.tl-grip:hover::after, body.tl-resizing .tl-grip::after { background: var(--accent); }
+body.tl-resizing, body.tl-resizing * { cursor: ns-resize !important; user-select: none; }
+.mt .grp { position: absolute; left: 0; background: rgba(166, 162, 255, 0.045); border-bottom: 1px solid var(--line); }
+.mt .grp-head { position: sticky; left: 0; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 0 8px; border: none; border-right: 1px solid var(--line); border-radius: 0; background: var(--panel-solid); box-shadow: none; font-family: var(--mono); font-size: 10.5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); text-align: left; }
+.mt .grp-head:hover { color: var(--text); background: var(--panel-solid); }
+.mt .grp-head em { font-style: normal; color: var(--faint); margin-left: auto; }
+.mt .grp-head .tw { font-size: 9px; transition: rotate 120ms; }
+.mt .grp-head .tw.open { rotate: 90deg; }
 
 .stage-wrap { position: relative; }
 .stage-wrap canvas { position: absolute; inset: 0; border-radius: 6px; }

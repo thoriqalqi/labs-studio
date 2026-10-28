@@ -69,6 +69,9 @@ export const SFX_LIST = {
   shimmer: 'Kilau',
   riser: 'Riser (naik)',
   sub: 'Dentum lembut',
+  pad: 'Pad ambient (latar)',
+  glassTap: 'Ketuk kaca',
+  scrollTick: 'Tik gulir',
   azan: 'Azan (perlu azan.mp3)'
 };
 

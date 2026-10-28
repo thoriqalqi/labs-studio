@@ -16,7 +16,7 @@ export default {
   schema: [
     { key: 'sound', label: 'Suara', kind: 'select', options: SOUNDS },
     { key: 'volume', label: 'Volume %', kind: 'number', min: 0, max: 200, step: 5 },
-    { key: 'count', label: 'Ulang (detak jam / jantung)', kind: 'number', min: 1, max: 20, step: 1 }
+    { key: 'count', label: 'Ulang (detak jam / jantung / tik gulir)', kind: 'number', min: 1, max: 20, step: 1 }
   ],
   size: () => ({ w: 0, h: 0 })
 };

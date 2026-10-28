@@ -13,6 +13,7 @@ import path from 'node:path';
 //   /api/eleven/...    voices, quota, tts → ElevenLabs; hasil mp3 ke media/uploads
 //   /api/upload        unggah audio/video → media/uploads (video: audionya saja)
 //   /media/...         menyajikan file unggahan
+//   /api/library       pustaka audio (media/library/sfx|music, subfolder = kategori) untuk menu Audio
 //   /api/export/...    frame/H.264 + audio → output/<id>.mp4 via ffmpeg
 //   /api/export-audio  WAV → output/<id>.mp3 + .wav
 //   /api/save-image    thumbnail / branding → output/
@@ -413,6 +414,33 @@ function studioPlugin() {
         }
       });
 
+      // ---------- pustaka audio untuk menu Audio: media/library/{sfx,music}/<kategori>/<nama>.mp3 ----------
+      server.middlewares.use('/api/library', (req, res) => {
+        const media = path.resolve('media');
+        const AUD = /\.(mp3|wav|m4a|aac|ogg|flac)$/i;
+        const walk = (kind) => {
+          const out = [];
+          const visit = (dir, cat) => {
+            if (!fs.existsSync(dir)) return;
+            // awalan angka ("1 Transisi") hanya untuk mengatur urutan; tidak ikut ditampilkan
+            const label = (n) => n.replace(AUD, '').replace(/^\d+[\s._-]+/, '');
+            const entries = fs.readdirSync(dir, { withFileTypes: true })
+              .sort((a, b) => a.name.replace(AUD, '').localeCompare(b.name.replace(AUD, ''), undefined, { numeric: true }));
+            for (const e of entries) {
+              const p = path.join(dir, e.name);
+              if (e.isDirectory()) visit(p, cat ? `${cat} / ${label(e.name)}` : label(e.name));
+              else if (AUD.test(e.name)) {
+                const rel = path.relative(media, p).split(path.sep).map(encodeURIComponent).join('/');
+                out.push({ cat, name: label(e.name), url: `/media/${rel}` });
+              }
+            }
+          };
+          visit(path.join(media, 'library', kind), '');
+          return out;
+        };
+        json(res, 200, { sfx: walk('sfx'), music: walk('music'), folder: 'media/library' });
+      });
+
       server.middlewares.use('/media/', (req, res, next) => {
         const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '');
         const root = path.resolve('media');
@@ -648,7 +676,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     // hanya folder data di root yang diabaikan (bukan src/motion dsb.)
-    watch: { ignored: ['output', 'media', 'episodes', 'motion', 'posters', 'projects'].map((d) => `${path.resolve(d).replace(/\\/g, '/')}/**`) }
+    watch: { ignored: ['output', 'media', 'episodes', 'motion', 'posters', 'projects', 'sfx'].map((d) => `${path.resolve(d).replace(/\\/g, '/')}/**`) }
   },
   build: {
     rollupOptions: { input: { home: 'index.html', motion: 'motion.html', chibi: 'chibi.html' } }

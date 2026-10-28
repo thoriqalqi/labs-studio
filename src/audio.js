@@ -169,6 +169,65 @@ const SFX = {
     src.start(when);
     src.stop(when + len + 0.1);
   },
+  // pad ambient lembut (latar video promo): akor terbuka yang bernapas pelan, panjang = durasi layer
+  pad(ctx, out, when, { length = 8 } = {}) {
+    const len = Math.max(2, length);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 0.7;
+    lp.frequency.setValueAtTime(500, when);
+    lp.frequency.linearRampToValueAtTime(1600, when + len * 0.5);
+    lp.frequency.linearRampToValueAtTime(700, when + len);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(0.16, when + Math.min(1.6, len * 0.3));
+    g.gain.setValueAtTime(0.16, when + len - Math.min(1.4, len * 0.25));
+    g.gain.linearRampToValueAtTime(0, when + len);
+    // napas pelan (tremolo halus)
+    const lfo = ctx.createOscillator();
+    const lg = ctx.createGain();
+    lfo.frequency.value = 0.22;
+    lg.gain.value = 0.035;
+    lfo.connect(lg);
+    lg.connect(g.gain);
+    lfo.start(when);
+    lfo.stop(when + len + 0.1);
+    lp.connect(g);
+    g.connect(out);
+    // A mayor 9 terbuka, tiap nada sedikit dilaras ganda supaya berkilau
+    [[110, 0.5], [164.81, 0.35], [220, 0.3], [277.18, 0.22], [329.63, 0.2], [493.88, 0.1]].forEach(([f, a]) => {
+      for (const det of [-1.2, 1.2]) {
+        const gg = ctx.createGain();
+        gg.gain.value = a * 0.5;
+        gg.connect(lp);
+        osc(ctx, f < 200 ? 'triangle' : 'sine', f + det * (f / 220), f + det * (f / 220), when, len, gg);
+      }
+    });
+  },
+  // ketuk kaca: klik gelembung lembut + denting tinggi tipis (cocok untuk tombol kaca / riak)
+  glassTap(ctx, out, when) {
+    osc(ctx, 'sine', 520, 1250, when, 0.09, env(ctx, out, when, 0.002, 0, 0.12, 0.35));
+    osc(ctx, 'sine', 2637, 2637, when + 0.01, 0.6, env(ctx, out, when + 0.01, 0.002, 0, 0.6, 0.06));
+    osc(ctx, 'sine', 3951, 3951, when + 0.02, 0.4, env(ctx, out, when + 0.02, 0.002, 0, 0.4, 0.03));
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx, 0.04);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 4500;
+    bp.Q.value = 3;
+    src.connect(bp);
+    bp.connect(env(ctx, out, when, 0.001, 0, 0.03, 0.25));
+    src.start(when);
+    src.stop(when + 0.05);
+  },
+  // tik gulir: ketukan sangat halus untuk daftar/kata yang bergulir; "count" = jumlah ketukan tiap 0,25 dtk
+  scrollTick(ctx, out, when, { count = 1 } = {}) {
+    for (let i = 0; i < count; i++) {
+      const w = when + i * 0.25;
+      osc(ctx, 'sine', 1900, 1500, w, 0.03, env(ctx, out, w, 0.001, 0, 0.035, 0.09));
+      osc(ctx, 'triangle', 380, 300, w, 0.04, env(ctx, out, w, 0.001, 0, 0.04, 0.08));
+    }
+  },
   // dentum lembut untuk adegan berganti / logo muncul
   sub(ctx, out, when) {
     osc(ctx, 'sine', 90, 32, when, 1.4, env(ctx, out, when, 0.01, 0.05, 1.3, 0.7));

@@ -17,6 +17,29 @@ const getDoc = async (id) => {
   return res.json();
 };
 
+// Tab beranda tidak memuat semua font editor. Sebelum render/ekspor, muat font yang dipakai dokumen
+// supaya hasilnya sama dengan di editor motion (tanpa ini teks jatuh ke font serif bawaan).
+const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Baloo+2:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Bebas+Neue&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=Playfair+Display:wght@700&family=Caveat:wght@600&family=Barlow+Condensed:wght@500;600;700&display=swap';
+async function ensureFonts(doc) {
+  if (!document.querySelector('link[href*="Baloo+2"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = FONT_CSS;
+    await new Promise((r) => {
+      link.onload = link.onerror = r;
+      document.head.appendChild(link);
+    });
+  }
+  const specs = new Set();
+  for (const l of doc.layers) {
+    for (const k of ['font', 'accentFont', 'labelFont']) {
+      const f = l.props?.[k];
+      if (f) for (const w of ['400', '500', '600', '700', '800', 'italic 400']) specs.add(`${w} 40px "${f}"`);
+    }
+  }
+  await Promise.all([...specs].map((s) => document.fonts.load(s).catch(() => {})));
+}
+
 let audio = null;
 const getAudio = () => (audio ||= createAudio());
 
@@ -72,6 +95,7 @@ const ops = {
     const doc = await getDoc(id);
     const cv = stageFor(doc);
     const ctx = cv.getContext('2d');
+    await ensureFonts(doc);
     await assets.preload(doc);
     const list = times.map((t) => Math.max(0, Math.min(doc.comp.duration - 0.001, Number(t) || 0)));
     const n = list.length;
@@ -116,6 +140,7 @@ const ops = {
     const cv = stageFor(doc);
     const ctx = cv.getContext('2d');
     const a = getAudio();
+    await ensureFonts(doc);
     await assets.preload(doc);
     a.setTimeline(audioTimeline(doc));
     await a.ensureLoaded();
@@ -138,6 +163,7 @@ const ops = {
   exportAfterEffects: ({ id }) => exclusive(async () => {
     const doc = await getDoc(id);
     const ctx = stageFor(doc).getContext('2d');
+    await ensureFonts(doc);
     return exportAfterEffects(doc, { ctx });
   }),
 

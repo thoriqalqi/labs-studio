@@ -14,6 +14,8 @@ settings.local.json
 /media/
 /posters/
 /output/
+# paket efek suara unduhan (berlisensi, besar)
+/sfx/
 
 # catatan produksi pribadi
 /ep01-ngejar-dunia/

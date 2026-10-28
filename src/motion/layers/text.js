@@ -5,13 +5,15 @@ import { drawMark } from './logo.js';
 
 export const FONTS = {
   Geist: 'Geist (bersih, modern)',
+  Inter: 'Inter (rapi, netral)',
   'Instrument Serif': 'Instrument Serif (serif elegan)',
   'Baloo 2': 'Baloo 2 (tebal, ramah)',
   'Plus Jakarta Sans': 'Plus Jakarta Sans',
   'Bebas Neue': 'Bebas Neue (judul tegak)',
   Poppins: 'Poppins',
   'Playfair Display': 'Playfair Display (serif)',
-  Caveat: 'Caveat (tulisan tangan)'
+  Caveat: 'Caveat (tulisan tangan)',
+  'Barlow Condensed': 'Barlow Condensed (padat, ala kamera)'
 };
 
 function tokens(text) {
@@ -238,6 +240,7 @@ export default {
         }
         if (p.stroke > 0) {
           ctx.lineWidth = p.stroke;
+          ctx.lineJoin = 'round';
           ctx.strokeStyle = p.strokeColor;
           ctx.strokeText(text, x0 + w.x, y + dy);
         }

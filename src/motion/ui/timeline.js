@@ -11,6 +11,12 @@ const HEAD = 210;
 const RULER_H = 26;
 const ROW_H = 34;
 const SUB_H = 24;
+const GROUP_H = 24;
+// layer dikelompokkan di timeline (hanya tampilan; urutan depan-belakang tetap urutan dokumen)
+const GROUPS = [['text', 'Teks'], ['visual', 'Visual'], ['audio', 'Audio']];
+const groupOf = (l) => (getLayerDef(l.type)?.audio ? 'audio' : l.type === 'text' ? 'text' : 'visual');
+const FOLD_KEY = 'labs.timeline.folded';
+const TLH_KEY = 'labs.timeline.height';
 const NEAR = 1 / 240;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const fmt = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
@@ -31,7 +37,11 @@ const TOOLS = [
 
 export function createTimeline(el, { store, getTime, seek, audio, actions }) {
   let pps = 60;
+  const waveWait = new Set(); // url audio yang sedang/akan dimuat untuk gambar gelombang
+  let folded = new Set();
+  try { folded = new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]')); } catch { /* penyimpanan tidak tersedia */ }
   el.innerHTML = `
+    <div class="tl-grip" role="separator" aria-orientation="horizontal" title="Tarik untuk mengubah tinggi timeline (klik dua kali: kembalikan)"></div>
     <div class="ed-toolbar">
       <label>Zoom <input type="range" data-ctl="zoom" min="5" max="300" step="1" value="60"></label>
       <span class="sep"></span>
@@ -48,6 +58,8 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
   // ---------- keadaan keyframe (hanya di editor, tidak disimpan ke dokumen) ----------
   const open = new Set(); // id layer yang dibuka per properti
   let keySel = []; // keyframe terpilih: { id, prop, t } (t = waktu konten)
+  // urutan tampil (id layer per kelompok) + posisi & tinggi baris per urutan tampil
+  let vis = [];
   let tops = [];
   let heights = [];
 
@@ -96,14 +108,24 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
     const total = d.comp.duration;
     const end = Math.max(total, ...d.layers.map((l) => l.start + l.dur)) + 3;
     const width = X(end);
+    vis = [];
     tops = [];
     heights = [];
+    const groupRows = [];
     let yy = RULER_H;
-    for (const l of d.layers) {
-      tops.push(yy);
-      const hh = ROW_H + (open.has(l.id) ? animProps(l).length * SUB_H : 0);
-      heights.push(hh);
-      yy += hh;
+    for (const [g, label] of GROUPS) {
+      const members = d.layers.filter((l) => groupOf(l) === g);
+      if (!members.length) continue;
+      groupRows.push({ g, label, y: yy, n: members.length });
+      yy += GROUP_H;
+      if (folded.has(g)) continue;
+      for (const l of members) {
+        vis.push(l.id);
+        tops.push(yy);
+        const hh = ROW_H + (open.has(l.id) ? animProps(l).length * SUB_H : 0);
+        heights.push(hh);
+        yy += hh;
+      }
     }
     const height = yy + 40;
     content.style.width = `${width}px`;
@@ -114,7 +136,16 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
     h += `<div class="comp-end" style="left:${X(total)}px" title="Akhir komposisi"></div></div>`;
     h += `<div class="beyond" style="left:${X(total)}px;top:${RULER_H}px;height:${height - RULER_H}px;width:${width - X(total)}px"></div>`;
 
-    d.layers.forEach((l, i) => {
+    // judul kelompok (bisa dilipat)
+    for (const r of groupRows) {
+      const shut = folded.has(r.g);
+      h += `<div class="grp" style="top:${r.y}px;height:${GROUP_H}px;width:${width}px">
+        <button type="button" class="grp-head" data-fold="${r.g}" style="width:${HEAD}px;height:${GROUP_H}px" aria-expanded="${!shut}" title="Lipat/buka kelompok">
+          <span class="tw${shut ? '' : ' open'}">▸</span><span>${r.label}</span><em>${r.n}</em>
+        </button></div>`;
+    }
+    vis.forEach((lid, i) => {
+      const l = findLayer(lid, d);
       const def = getLayerDef(l.type);
       const y = tops[i];
       const on = store.sel?.id === l.id;
@@ -164,7 +195,17 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
       const l = d.layers.find((x) => x.id === node.dataset.id);
       const peaks = l.props?.url && audio.peaks(l.props.url);
       if (!peaks) {
-        if (l.props?.url && !audio.isReady(l.props.url)) audio.getBuffer(l.props.url).then(render);
+        // gambar ulang sekali saat file selesai dimuat; file yang gagal dibaca (null) tidak memicu render lagi
+        // (dulu .then(render) tanpa syarat → render tanpa henti dan editor macet)
+        if (l.props?.url && !audio.isReady(l.props.url) && !waveWait.has(l.props.url)) {
+          waveWait.add(l.props.url);
+          audio.getBuffer(l.props.url).then((buf) => {
+            if (buf) {
+              waveWait.delete(l.props.url);
+              render();
+            }
+          });
+        }
         return;
       }
       const cv = node.querySelector('canvas');
@@ -202,7 +243,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
 
   content.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    if (e.target.closest('.ico')) return;
+    if (e.target.closest('.ico') || e.target.closest('.grp-head')) return;
     const kd = e.target.closest('.kd');
     if (kd) return dragKeys(e, kd);
     const head = e.target.closest('.row-head');
@@ -228,7 +269,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
     const before = store.snapshot();
     const x0 = e.clientX;
     const y0 = e.clientY;
-    const from = store.doc.layers.indexOf(layer);
+    const from = vis.indexOf(id);
     let to = from;
     let moved = false;
     let dyNow = 0;
@@ -269,11 +310,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
     }, () => {
       if (!moved) return;
       const finish = () => {
-        if (to !== from) {
-          const d = store.doc;
-          const [l] = d.layers.splice(from, 1);
-          d.layers.splice(to, 0, l);
-        }
+        if (to !== from) reorder(store.doc, from, to);
         store.commit(before);
       };
       if (edge) return finish();
@@ -287,12 +324,35 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
   // Tinggi baris bisa berbeda (layer yang dibuka per properti), jadi posisi memakai tops/heights.
   let lifting = null;
   const layerEls = (id) => content.querySelectorAll(`[data-layer="${id}"]`);
-  // slot tujuan = jumlah layer lain yang titik tengahnya di atas titik tengah baris yang diseret
+  // posisi (urutan tampil) memakai vis/tops/heights. Layer hanya bisa dipindah di dalam kelompoknya.
+  function groupRange(pos) {
+    const g = groupOf(findLayer(vis[pos]));
+    let a = pos;
+    let b = pos;
+    while (a > 0 && groupOf(findLayer(vis[a - 1])) === g) a--;
+    while (b < vis.length - 1 && groupOf(findLayer(vis[b + 1])) === g) b++;
+    return [a, b];
+  }
+  // slot tujuan = jumlah layer lain sekelompok yang titik tengahnya di atas titik tengah baris yang diseret
   function slotFor(from, dy) {
+    if (from < 0) return from;
+    const [a, b] = groupRange(from);
     const c = tops[from] + heights[from] / 2 + dy;
-    let to = 0;
-    for (let i = 0; i < tops.length; i++) if (i !== from && tops[i] + heights[i] / 2 < c) to++;
+    let to = a;
+    for (let i = a; i <= b; i++) if (i !== from && tops[i] + heights[i] / 2 < c) to++;
     return to;
+  }
+  // terapkan perpindahan posisi tampil ke dokumen: layer sekelompok bertukar tempat di slot dokumen
+  // yang sama, jadi urutan depan-belakang kelompok lain tidak berubah
+  function reorder(d, from, to) {
+    const [a, b] = groupRange(from);
+    const ids = vis.slice(a, b + 1);
+    const [m] = ids.splice(from - a, 1);
+    ids.splice(to - a, 0, m);
+    const byId = new Map(d.layers.map((l) => [l.id, l]));
+    const slots = [];
+    d.layers.forEach((l, i) => { if (ids.includes(l.id)) slots.push(i); });
+    slots.forEach((di, k) => { d.layers[di] = byId.get(ids[k]); });
   }
   // jarak geser baris yang diseret sampai ke slot barunya
   function shiftTo(from, to) {
@@ -310,13 +370,13 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
   }
 
   function place(id, dxPx, dy, from, to) {
-    store.doc.layers.forEach((l, i) => {
+    vis.forEach((lid, i) => {
       let ty = 0;
-      if (l.id === id) ty = dy;
+      if (lid === id) ty = dy;
       else if (from < to && i > from && i <= to) ty = -heights[from];
       else if (from > to && i >= to && i < from) ty = heights[from];
-      for (const n of layerEls(l.id)) {
-        const tx = l.id === id && !n.classList.contains('row') ? dxPx : 0;
+      for (const n of layerEls(lid)) {
+        const tx = lid === id && !n.classList.contains('row') ? dxPx : 0;
         n.style.transform = `translate(${tx}px, ${ty}px)`;
       }
     });
@@ -341,7 +401,7 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
   function dragRow(e, id) {
     e.preventDefault();
     store.select({ kind: 'layer', id });
-    const from = store.doc.layers.findIndex((l) => l.id === id);
+    const from = vis.indexOf(id);
     const y0 = e.clientY;
     let to = from;
     let moving = false;
@@ -358,15 +418,20 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
       if (!moving) return;
       settle(id, 0, from, to, () => {
         if (to === from) return render();
-        store.mutate((d) => {
-          const [l] = d.layers.splice(from, 1);
-          d.layers.splice(to, 0, l);
-        });
+        store.mutate((d) => reorder(d, from, to));
       });
     });
   }
 
   content.addEventListener('click', (e) => {
+    const fold = e.target.closest('[data-fold]');
+    if (fold) {
+      const g = fold.dataset.fold;
+      if (folded.has(g)) folded.delete(g);
+      else folded.add(g);
+      try { localStorage.setItem(FOLD_KEY, JSON.stringify([...folded])); } catch { /* abaikan */ }
+      return render();
+    }
     const tw = e.target.closest('[data-tw]');
     if (tw) return toggleOpen(tw.dataset.tw);
     const eye = e.target.closest('[data-eye]');
@@ -567,6 +632,29 @@ export function createTimeline(el, { store, getTime, seek, audio, actions }) {
     },
     toggleOpen
   };
+
+  // ---------- tinggi timeline: tarik garis di atasnya naik/turun (diingat di browser) ----------
+  const grip = el.querySelector('.tl-grip');
+  const setHeight = (h) => document.body.style.setProperty('--tl-h', `${Math.round(clamp(h, 140, window.innerHeight - 240))}px`);
+  try {
+    const saved = parseFloat(localStorage.getItem(TLH_KEY));
+    if (saved) setHeight(saved);
+  } catch { /* abaikan */ }
+  grip.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const y0 = e.clientY;
+    const h0 = el.getBoundingClientRect().height;
+    document.body.classList.add('tl-resizing');
+    drag((ev) => setHeight(h0 + (y0 - ev.clientY)), () => {
+      document.body.classList.remove('tl-resizing');
+      try { localStorage.setItem(TLH_KEY, String(el.getBoundingClientRect().height)); } catch { /* abaikan */ }
+    });
+  });
+  grip.addEventListener('dblclick', () => {
+    document.body.style.removeProperty('--tl-h');
+    try { localStorage.removeItem(TLH_KEY); } catch { /* abaikan */ }
+  });
 
   el.querySelector('[data-ctl=zoom]').addEventListener('input', (e) => {
     const center = (scroll.scrollLeft + scroll.clientWidth / 2 - HEAD) / pps;

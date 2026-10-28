@@ -25,6 +25,12 @@ export const assets = {
   async preload(doc) {
     // gambar dari layer apa pun yang punya url (image, lanskap, layar 3D, …), kecuali media bersuara/video
     const urls = doc.layers.filter((l) => l.props?.url && !['audio', 'video', 'sfx'].includes(l.type) && !usesVideo(l)).map((l) => l.props.url);
+    // properti gambar lain di schema (mis. sampul & kartu folder kaca)
+    for (const l of doc.layers) {
+      for (const f of getLayerDef(l.type)?.schema || []) {
+        if (f.kind === 'asset' && f.key !== 'url' && /image/.test(f.accept || '') && l.props?.[f.key]) urls.push(l.props[f.key]);
+      }
+    }
     await Promise.all(urls.map((u) => new Promise((r) => {
       assets.image(u);
       const e = images.get(u);

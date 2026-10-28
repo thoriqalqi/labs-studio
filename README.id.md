@@ -30,10 +30,10 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 
 | Area | Isi |
 |---|---|
-| Kiri: **Tambah** | Jenis layer (Latar, Teks, Bentuk, Gambar, Audio, Karakter chibi 3D), rakitan siap pakai (Judul + subjudul, Lower third, Subtitle, Kartu kutipan), impor file |
+| Kiri: **Toolbar** | Ikon alat yang sering dipakai: Teks, Bentuk, Gambar, Video, Kamera, **Audio** (menu Musik / SFX / Impor), Suara AI (voice over), Impor. Tombol **Semua** membuka panel melayang berisi semua jenis layer dan rakitan siap pakai |
 | Tengah | Kanvas. Klik objek untuk memilih, seret untuk memindahkan. Seret **sudut** untuk memperbesar/memperkecil, seret **titik bulat di tengah sisi** untuk crop. Zoom tampilan: tombol − / + di bawah kanvas, Ctrl + scroll, Ctrl 0 = pas layar |
 | Kanan: **Inspector** | Properti layer. ○/◇/◆ untuk keyframe, pilih easing tiap keyframe, animasi masuk/keluar. Tanpa pilihan: pengaturan komposisi (ukuran, fps, durasi) |
-| Bawah: **Timeline** | Satu baris per layer (atas = paling depan). Seret batang untuk menggeser, seret tepi untuk memotong; ◆ = keyframe. ▸ di nama layer membuka satu baris per properti beranimasi |
+| Bawah: **Timeline** | Layer dikelompokkan jadi **Teks**, **Visual** (gambar, video, bentuk, elemen), dan **Audio** (VO, suara, efek); klik judul kelompok untuk melipat. Di dalam kelompok, atas = paling depan; seret nama layer untuk mengurutkan (hanya di dalam kelompoknya). Seret batang untuk menggeser, seret tepi untuk memotong; ◆ = keyframe. ▸ di nama layer membuka satu baris per properti beranimasi. Tarik garis di atas timeline untuk mengubah tingginya (klik dua kali: kembalikan) |
 
 **Garis bantu:** saat menggeser, layer menempel ke tengah layar (kiri-kanan dan atas-bawah), ke tepi layar, dan ke tepi/tengah layer lain, lalu muncul garis pink sebagai penanda. Tahan Ctrl atau Alt untuk menggeser bebas tanpa menempel.
 
@@ -50,11 +50,15 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 
 **Video:** impor atau seret file video (mp4, mov, mkv, webm) ke jendela editor motion. Gambarnya jadi layer **Video**, suaranya jadi layer **Audio** di bawahnya (volume bisa diatur terpisah). Format yang tidak bisa diputar browser otomatis dikonversi ke MP4.
 
-**Efek suara:** panel kiri → Media → **Efek suara** (whoosh, whoosh naik, klik UI, pop, chime, kilau, riser, dentum lembut, dll.), tanpa file audio. Atur jenis & volumenya di inspector, geser layernya ke titik transisi.
+**Menu Audio:** tombol **Audio** di toolbar membuka menu tiga tab. **SFX** berisi pustaka efek suara (transisi/whoosh, klik & UI, notifikasi, hantaman, kilau, ketik); klik namanya untuk mendengar langsung di studio, **+** untuk menaruhnya di posisi playhead. **Musik** sama untuk musik latar. **Impor** untuk file audio/video sendiri, voice over, dan efek sintetis. Isi pustaka diambil dari folder `media/library/sfx/<kategori>/` dan `media/library/music/` (angka di depan nama folder hanya untuk urutan), jadi cukup taruh file mp3/wav/m4a di sana.
+
+**Efek suara sintetis:** Audio → Impor → **Efek suara sintetis** (whoosh, klik UI, pop, chime, kilau, riser, dll.), tanpa file audio. Atur jenis & volumenya di inspector, geser layernya ke titik transisi.
 
 **Layer untuk video promo:** Liquid gradient (latar gradien cair, bisa digelapkan), Garis gambar (garis silang & bingkai yang tergambar), Layar aplikasi 3D (tampilan studio dengan perspektif 3D), Kursor, Tombol/pil, Logo aplikasi. Contohnya ada di proyek **Intro Motion Studio (liquid navy)** dan template **Intro aplikasi (liquid gradient)**.
 
 **Layer demo aplikasi (kategori Demo UI):** **Mockup HP / browser** (layar diisi screenshot atau rekaman layar mp4, bisa digulir), **Karakter agen** (maskot bergaya avatar agen: tetes, hantu, segitiga, bintang, hati, bunga cue; berkedip & melayang sendiri), **Ikon aplikasi** (Instagram, Canva, dan ikon tugas), dan **Gelembung chat** (pesan agen/kamu, dengan animasi sedang mengetik). Preset teks **Naik per kata, bertopeng** meniru judul video promo produk. Latar **Kaca cair (liquid glass)** bergaya Liquid Glass Apple (shader WebGL): latarnya foto sendiri (kolom *Gambar latar*, bisa di-zoom & digeser pelan) atau gradien pastel yang mengalir, ditimpa kepingan kaca bening yang melengkungkan gambar di dekat tepinya, dengan pelangi tipis, garis kilau, dan bayangan. Centang *Panel kaca besar di tengah* untuk panel kaca buram di belakang isi video supaya teks tetap terbaca di atas foto. Kartu UI juga bisa jadi kaca: centang *Kaca (liquid glass)* di **Gelembung chat** atau *Kotak dari kaca* di **Ikon aplikasi**, maka kartunya membiaskan apa pun di belakangnya (latar, foto, layar HP) seperti panel iOS. Contohnya ada di proyek **cue · Tim Konten Instagram**.
+
+**Layer showreel:** **Kolom cari / komentar** (pil seperti bilah alamat HP: teks diketik huruf demi huruf, tombol samping & tombol kirim muncul), **Folder kaca** (kartu bergambar keluar menyebar saat folder dibuka), **Lorong bingkai** (terowongan bingkai persegi berputar dengan matahari & pantulan lensa; animasikan *Maju* untuk terbang masuk), **Grid modul** (ubin muncul bergiliran, satu disorot, bisa menyatu ke tengah), **Kartu UI gelap** (tombol "+ Baru" bertepi pelangi, menu pilihan, kolom isian, kotak unggah, daftar progres yang berubah hijau, centang berhasil; bisa dimiringkan seperti 3D), dan **Langit berawan** (bisa tumbuh dari gumpalan cair sampai memenuhi layar). Contohnya ada di proyek **Labs Studio · Showreel**.
 
 **Layer gaya editorial (Promo):** Pola titik, Bola gradien, Lanskap alam, Diagram lingkar, Kartu UI, Angka berjalan, Gulungan kata. Contohnya ada di proyek **Labs Motion · promo editorial** dan template **Promo editorial (Labs Motion)**.
 
@@ -114,7 +118,7 @@ Render, ekspor, dan template berjalan di browser, jadi biarkan satu tab Labs Stu
 
 Pertama kali dipakai, dialog Voice over meminta API key ElevenLabs (elevenlabs.io → Profile → API Keys). Key disimpan hanya di komputer ini (`settings.local.json`).
 
-- **Editor motion:** panel kiri → **Suara → Voice over**. Tulis teks, pilih suara & model, klik **Buat suara**, dengarkan, lalu **Masukkan ke timeline**. Hasilnya jadi layer audio di posisi playhead.
+- **Editor motion:** toolbar kiri → **Suara AI** (atau **Semua → Suara → Voice over**). Tulis teks, pilih suara & model, klik **Buat suara**, dengarkan, lalu **Masukkan ke timeline**. Hasilnya jadi layer audio di posisi playhead.
 - **Editor episode chibi:** di toolbar timeline ada **🎙 Voice over** (satu suara di playhead) dan **🎙 VO semua adegan**. Yang kedua membacakan subtitle tiap adegan, menaruh suaranya di awal adegan, dan (opsional) menyamakan durasi adegan dengan panjang suaranya.
 - Pengaturan suara terakhir diingat. Sisa kuota karakter ditampilkan di dialog.
 

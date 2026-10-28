@@ -341,11 +341,46 @@ async function addVoiceOver() {
   }
 }
 
+// toolbar kiri: alat yang paling sering dipakai; semua jenis layer lain ada di panel "Semua layer"
+const railIcon = (d) => `<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const RAIL = [
+  ['type', 'text', 'Teks', '<path d="M5 6h14M12 6v13M9 19h6"/>'],
+  ['type', 'shape', 'Bentuk', '<rect x="4" y="4" width="16" height="16" rx="3"/>'],
+  ['type', 'image', 'Gambar', '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/>'],
+  ['type', 'video', 'Video', '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/>'],
+  ['type', 'camera', 'Kamera', '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'],
+  'sep',
+  ['act', 'audio', 'Audio', '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>'],
+  ['act', 'voice', 'Suara AI', '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'],
+  'fill',
+  ['act', 'lib', 'Semua', '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/>'],
+  ['act', 'import', 'Impor', '<path d="M12 15V4M7 9l5-5 5 5M5 15v4h14v-4"/>']
+];
+
 function renderPalette() {
   const cats = {};
   for (const def of LAYER_TYPES) (cats[def.category || 'Lainnya'] = cats[def.category || 'Lainnya'] || []).push(def);
-  $('palette').innerHTML = `
-    <div class="panel-head"><span>Tambah</span></div>
+  const rail = RAIL.map((r) => {
+    if (r === 'sep') return '<span class="rail-sep" aria-hidden="true"></span>';
+    if (r === 'fill') return '<span class="rail-fill" aria-hidden="true"></span>';
+    const [kind, key, label, icon] = r;
+    const title = kind === 'type' ? `Tambah ${label}` : key === 'lib' ? 'Semua jenis layer & rakitan' : key === 'voice' ? 'Voice over (ElevenLabs)' : key === 'audio' ? 'Musik, efek suara & impor audio' : 'Impor gambar / audio / video';
+    return `<button type="button" class="rail-btn" ${kind === 'type' ? `data-type="${key}"` : `data-act="${key}"`} title="${title}" aria-label="${title}">${railIcon(icon)}<span>${label}</span></button>`;
+  }).join('');
+  $('palette').innerHTML = rail;
+  // panel "Semua layer" ditaruh langsung di body: panel kiri memakai backdrop-filter yang memotong elemen fixed di dalamnya
+  let pop = document.querySelector('.pal-pop');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.className = 'pal-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', 'Semua layer');
+    pop.addEventListener('click', onPaletteClick);
+    document.body.appendChild(pop);
+  }
+  pop.innerHTML = `
+    <div class="panel-head"><span>Semua layer</span></div>
     <div class="pal">
       ${Object.entries(cats).map(([cat, defs]) => `<h5>${cat}</h5><div class="pal-grid">${defs.map((d) => `<button type="button" data-type="${d.type}"><b>${d.icon || '+'}</b>${d.name}</button>`).join('')}</div>`).join('')}
       <h5>Rakitan</h5>
@@ -358,9 +393,200 @@ function renderPalette() {
     </div>`;
 }
 
-$('palette').addEventListener('click', (e) => {
+const libPop = () => document.querySelector('.pal-pop');
+function toggleLib(force) {
+  const pop = libPop();
+  const show = force ?? pop.hidden;
+  if (show) toggleAudio(false);
+  pop.hidden = !show;
+  $('palette').querySelector('[data-act=lib]')?.classList.toggle('on', show);
+}
+// klik di luar panel = tutup
+document.addEventListener('pointerdown', (e) => {
+  if (!libPop()?.hidden && !e.target.closest('.pal-pop') && !e.target.closest('[data-act=lib]')) toggleLib(false);
+  if (audPop && !audPop.hidden && !e.target.closest('.aud-pop') && !e.target.closest('[data-act=audio]') && !e.target.closest('.dialog, dialog')) toggleAudio(false);
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+  if (audPop && !audPop.hidden) toggleAudio(false);
+  if (!libPop()?.hidden) toggleLib(false);
+});
+
+// ---------- menu Audio: Musik / SFX / Impor, dengan pratinjau sebelum dipilih ----------
+// isi pustaka dari /api/library (folder media/library/sfx|music, subfolder = kategori)
+const ICON_PLAY = '<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const ICON_STOP = '<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+const ICON_ADD = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+let audPop = null;
+let audTab = 'sfx';
+let audLib = null;
+let audQuery = '';
+const preview = new Audio();
+preview.preload = 'auto';
+let previewUrl = '';
+
+function stopPreview() {
+  preview.pause();
+  previewUrl = '';
+  audPop?.querySelectorAll('.aud-row.playing').forEach((r) => r.classList.remove('playing'));
+}
+preview.addEventListener('ended', stopPreview);
+preview.addEventListener('timeupdate', () => {
+  const row = audPop?.querySelector('.aud-row.playing');
+  if (row && preview.duration) row.style.setProperty('--pos', `${(preview.currentTime / preview.duration) * 100}%`);
+});
+
+function playPreview(url) {
+  if (previewUrl === url) return stopPreview();
+  stopPreview();
+  previewUrl = url;
+  preview.src = url;
+  preview.currentTime = 0;
+  preview.play().catch(() => status('Pratinjau tidak bisa diputar'));
+  const row = audPop.querySelector(`.aud-row[data-url="${CSS.escape(url)}"]`);
+  row?.style.setProperty('--pos', '0%');
+  row?.classList.add('playing');
+}
+
+async function addAudioFromUrl(url, name) {
+  status(`Menyiapkan ${name}…`);
+  const buf = await audio.getBuffer(url);
+  if (!buf) return status(`Gagal membaca ${name}`);
+  const d = doc();
+  addLayers([newLayer('audio', d.comp, { name, start: t, dur: buf.duration, props: { url } })]);
+  status(`${name} ditambahkan di ${t.toFixed(1)} dtk (${buf.duration.toFixed(1)} dtk)`);
+  if (t + buf.duration > d.comp.duration + 0.05 && (await ask(`Audio lebih panjang dari komposisi. Perpanjang komposisi jadi ${Math.ceil(t + buf.duration)} detik?`, { ok: 'Perpanjang', cancel: 'Biarkan' }))) {
+    store.mutate((dd) => { dd.comp.duration = Math.ceil(t + buf.duration); });
+  }
+}
+
+const escHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function audRows(items) {
+  const q = audQuery.trim().toLowerCase();
+  const list = q ? items.filter((it) => `${it.cat} ${it.name}`.toLowerCase().includes(q)) : items;
+  if (!list.length) return `<p class="meta wrap">${q ? 'Tidak ada yang cocok.' : 'Belum ada file di sini.'}</p>`;
+  let html = '';
+  let cat = null;
+  for (const it of list) {
+    if (it.cat !== cat) {
+      cat = it.cat;
+      if (cat) html += `<h5>${escHtml(cat)}</h5>`;
+    }
+    const playing = it.url === previewUrl;
+    html += `<div class="aud-row${playing ? ' playing' : ''}" data-url="${escHtml(it.url)}" data-name="${escHtml(it.name)}">
+      <button type="button" class="aud-play" data-aud="play" title="Dengarkan" aria-label="Dengarkan">${ICON_PLAY}${ICON_STOP}</button>
+      <button type="button" class="aud-name" data-aud="play" translate="no">${escHtml(it.name)}</button>
+      <button type="button" class="aud-add" data-aud="add" title="Tambah di posisi playhead" aria-label="Tambah di posisi playhead">${ICON_ADD}</button>
+    </div>`;
+  }
+  return html;
+}
+
+function renderAudioPop() {
+  if (!audPop) return;
+  const tabs = [['music', 'Musik'], ['sfx', 'SFX'], ['import', 'Impor']];
+  let body;
+  if (!audLib) body = '<p class="meta wrap">Memuat pustaka…</p>';
+  else if (audTab === 'import') {
+    body = `
+      <button type="button" class="wide" data-aud="import">Impor file audio / video…</button>
+      <p class="meta wrap">Atau seret file ke jendela ini. Suara dari video ikut jadi layer audio.</p>
+      <h5>Suara AI</h5>
+      <button type="button" class="wide" data-act="voice">Voice over (ElevenLabs)…</button>
+      <h5>Efek sintetis</h5>
+      <button type="button" class="wide" data-type="sfx">Efek suara sintetis (tanpa file)</button>`;
+  } else {
+    const items = audTab === 'sfx' ? audLib.sfx : audLib.music;
+    body = `
+      <input type="search" class="aud-search" placeholder="${audTab === 'sfx' ? 'Cari efek suara…' : 'Cari musik…'}" value="${escHtml(audQuery)}" aria-label="Cari">
+      <div class="aud-list">${audRows(items)}</div>
+      <p class="meta wrap">${audTab === 'sfx' ? 'Klik untuk mendengar, + untuk menaruh di posisi playhead.' : 'Tambah musik sendiri: taruh file di folder media/library/music, atau lewat tab Impor.'}</p>`;
+  }
+  audPop.innerHTML = `
+    <div class="panel-head"><span>Audio</span></div>
+    <div class="aud-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" class="${audTab === k ? 'on' : ''}" aria-selected="${audTab === k}">${l}${audLib && k !== 'import' ? ` <em>${(k === 'sfx' ? audLib.sfx : audLib.music).length}</em>` : ''}</button>`).join('')}</div>
+    <div class="pal aud-body">${body}</div>`;
+}
+
+async function loadAudioLib() {
+  try {
+    const res = await fetch('/api/library');
+    audLib = await res.json();
+  } catch {
+    audLib = { sfx: [], music: [] };
+    status('Pustaka audio gagal dimuat');
+  }
+  renderAudioPop();
+}
+
+function toggleAudio(force) {
+  if (!audPop) {
+    if (force === false) return;
+    audPop = document.createElement('div');
+    audPop.className = 'pal-pop aud-pop';
+    audPop.hidden = true;
+    audPop.setAttribute('role', 'dialog');
+    audPop.setAttribute('aria-label', 'Audio');
+    audPop.addEventListener('click', onAudioClick);
+    audPop.addEventListener('input', (e) => {
+      if (!e.target.matches('.aud-search')) return;
+      audQuery = e.target.value;
+      const list = audPop.querySelector('.aud-list');
+      if (list) list.innerHTML = audRows(audTab === 'sfx' ? audLib.sfx : audLib.music);
+    });
+    document.body.appendChild(audPop);
+  }
+  const show = force ?? audPop.hidden;
+  if (show) {
+    toggleLib(false);
+    renderAudioPop();
+    loadAudioLib(); // selalu segar: file baru di media/library langsung muncul
+  } else stopPreview();
+  audPop.hidden = !show;
+  $('palette').querySelector('[data-act=audio]')?.classList.toggle('on', show);
+}
+
+function onAudioClick(e) {
   const b = e.target.closest('button');
   if (!b) return;
+  if (b.dataset.tab) {
+    stopPreview();
+    audTab = b.dataset.tab;
+    audQuery = '';
+    return renderAudioPop();
+  }
+  const row = b.closest('.aud-row');
+  if (b.dataset.aud === 'play' && row) return playPreview(row.dataset.url);
+  if (b.dataset.aud === 'add' && row) {
+    stopPreview();
+    return addAudioFromUrl(row.dataset.url, row.dataset.name);
+  }
+  if (b.dataset.aud === 'import') {
+    toggleAudio(false);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'audio/*,video/*,.mov,.mkv';
+    input.onchange = () => importFiles([...input.files]);
+    return input.click();
+  }
+  if (b.dataset.act === 'voice') {
+    toggleAudio(false);
+    return addVoiceOver();
+  }
+  if (b.dataset.type) {
+    toggleAudio(false);
+    addType(b.dataset.type);
+  }
+}
+
+function onPaletteClick(e) {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.act === 'lib') return toggleLib();
+  if (b.dataset.act === 'audio') return toggleAudio();
+  if (b.closest('.pal-pop')) toggleLib(false); // sudah memilih dari panel: tutup
   if (b.dataset.type) addType(b.dataset.type);
   if (b.dataset.snippet) addLayers(SNIPPETS.find((s) => s.id === b.dataset.snippet).create(doc().comp, t));
   if (b.dataset.act === 'voice') addVoiceOver();
@@ -372,7 +598,8 @@ $('palette').addEventListener('click', (e) => {
     input.onchange = () => importFiles([...input.files]);
     input.click();
   }
-});
+}
+$('palette').addEventListener('click', onPaletteClick);
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => {
@@ -820,7 +1047,7 @@ function loop() {
     return;
   }
   const d = await res.json();
-  await Promise.all(['400 40px "Geist"', '500 40px "Geist"', '600 40px "Geist"', 'italic 400 40px "Instrument Serif"', '400 40px "Instrument Serif"', '800 40px "Baloo 2"', '600 40px "Plus Jakarta Sans"', '400 40px "Bebas Neue"', '700 40px "Poppins"', '700 40px "Playfair Display"', '600 40px "Caveat"'].map((f) => document.fonts.load(f).catch(() => {})));
+  await Promise.all(['400 40px "Geist"', '500 40px "Geist"', '600 40px "Geist"', 'italic 400 40px "Instrument Serif"', '400 40px "Instrument Serif"', '800 40px "Baloo 2"', '600 40px "Plus Jakarta Sans"', '400 40px "Bebas Neue"', '700 40px "Poppins"', '800 40px "Poppins"', 'italic 400 40px "Poppins"', 'italic 500 40px "Poppins"', '700 40px "Playfair Display"', '600 40px "Caveat"', '600 40px "Barlow Condensed"', '700 40px "Barlow Condensed"'].map((f) => document.fonts.load(f).catch(() => {})));
   renderPalette();
   store.load(d);
   document.title = `${d.name} · Labs Studio`;
