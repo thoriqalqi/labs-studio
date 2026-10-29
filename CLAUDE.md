@@ -83,6 +83,7 @@ Template `kind: 'chibi'` membuat episode chibi (lihat `episode-chibi.js`).
 
 ### 3. Preset animasi masuk/keluar → tambah entri di `src/motion/presets.js`
 `apply(k, m)`: `k` 0→1 (muncul), ubah `m.opacity`, `m.dx`, `m.dy`, `m.scale`, `m.rotation`, `m.blur`, atau `m.reveal` (khusus teks).
+Efek gambar: `m.fx = { mode: 'pixel' | 'ascii', a }` (a 0 utuh → 1 hilang) digambar `drawFx` di `engine.js` lewat kanvas kecil + hash posisi (tetap deterministik); preset `raster: true` membuat ekspor AE merender layernya, `linear: true` = tanpa easeOut.
 
 ### 4. Rakitan (beberapa layer sekaligus) → tambah entri di `src/motion/snippets.js`
 

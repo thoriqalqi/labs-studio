@@ -143,7 +143,7 @@ export function layerState(doc, layer, t, ctx) {
   const vt = t - layer.start;
   const contentT = vt + (layer.offset || 0);
   const p = resolveProps(layer, def, contentT, doc.comp);
-  const m = applyAnim(layer.anim, vt, layer.dur, { opacity: 1, dx: 0, dy: 0, scale: 1, rotation: 0, blur: 0, reveal: null });
+  const m = applyAnim(layer.anim, vt, layer.dur, { opacity: 1, dx: 0, dy: 0, scale: 1, rotation: 0, blur: 0, reveal: null, fx: null });
   const env = { t, vt, contentT, layer, comp: doc.comp, reveal: m.reveal, assets, ctx };
   // size() boleh mengukur teks dengan ctx; simpan/pulihkan supaya font & jarak huruf tidak bocor ke layer lain
   let size = { w: 200, h: 200 };
@@ -266,7 +266,8 @@ export function renderComp(ctx, doc, t) {
         console.warn(`Layer ${layer.name} gagal digambar`, err);
       }
     };
-    if (blur > 0.05) drawBlurred(ctx, W, H, blur, paint);
+    if (m.fx && m.fx.a > 0.005) drawFx(ctx, W, H, m.fx, paint, layer.id);
+    else if (blur > 0.05) drawBlurred(ctx, W, H, blur, paint);
     else paint(ctx, 1);
     ctx.restore();
   }
@@ -300,6 +301,106 @@ function drawBlurred(ctx, W, H, blur, paint) {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(b, 0, 0, W, H);
+  ctx.restore();
+}
+
+// ---------- efek piksel / ASCII (preset animasi 'pixel' & 'ascii') ----------
+// Layer digambar di kanvas kecil (1 piksel = 1 kotak/sel), warnanya dibaca, lalu dipecah.
+// Urutan hilangnya kotak memakai hash dari posisi + id layer, jadi tiap frame selalu sama (aman untuk ekspor).
+const fxBuf = { c: null };
+const smooth = (e0, e1, x) => {
+  const k = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return k * k * (3 - 2 * k);
+};
+function hash3(i, j, s) {
+  let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(s, 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+const seedOf = (id = '') => {
+  let h = 7;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h, 31) + id.charCodeAt(i);
+  return h | 0;
+};
+const ASCII_RAMP = ' .:-=+*#%@';
+
+function fxSample(W, H, cell, paint) {
+  const w = Math.ceil(W / cell);
+  const h = Math.ceil(H / cell);
+  if (!fxBuf.c) fxBuf.c = document.createElement('canvas');
+  const c = fxBuf.c;
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, w, h);
+  g.save();
+  g.setTransform(1 / cell, 0, 0, 1 / cell, 0, 0);
+  paint(g, cell);
+  g.restore();
+  return { c, g, w, h, img: g.getImageData(0, 0, w, h) };
+}
+
+function drawFx(ctx, W, H, fx, paint, id) {
+  const a = Math.min(1, Math.max(0, fx.a));
+  const seed = seedOf(id);
+  if (fx.mode === 'ascii') {
+    // awalnya gambar asli memudar sambil huruf muncul, lalu huruf makin tipis & rontok
+    const cell = 13 + a * 9;
+    const { w, h, img } = fxSample(W, H, cell, paint);
+    const base = ctx.globalAlpha;
+    if (a < 0.35) {
+      ctx.save();
+      ctx.globalAlpha = base * (1 - a / 0.35);
+      paint(ctx, 1);
+      ctx.restore();
+    }
+    const drop = smooth(0.3, 1, a);
+    const flick = Math.floor(a * 14);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = base * Math.min(1, a / 0.12);
+    ctx.font = `600 ${Math.round(cell * 1.18)}px "Geist Mono", ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const d = img.data;
+    const n = ASCII_RAMP.length - 1;
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        const o = (j * w + i) * 4;
+        const al = d[o + 3] / 255;
+        if (al < 0.08) continue;
+        const r = hash3(i, j, seed);
+        if (r < drop) continue;
+        const lum = (0.299 * d[o] + 0.587 * d[o + 1] + 0.114 * d[o + 2]) / 255;
+        // makin jauh prosesnya, huruf makin "ringan"; sedikit acak per tahap supaya berkedip
+        let v = al * (0.4 + 0.6 * (1 - lum)) * (1 - a * 0.55) + (hash3(i, j, seed + flick) - 0.5) * 0.25;
+        const idx = Math.max(1, Math.min(n, Math.round(v * n)));
+        ctx.fillStyle = `rgb(${d[o]},${d[o + 1]},${d[o + 2]})`;
+        ctx.fillText(ASCII_RAMP[idx], (i + 0.5) * cell, (j + 0.5) * cell);
+      }
+    }
+    ctx.restore();
+    return;
+  }
+  // piksel: kotak membesar, lalu rontok acak
+  const cell = Math.max(1, Math.round(1 + Math.pow(a, 1.2) * 34));
+  if (cell < 2) return paint(ctx, 1);
+  const { c, g, w, h, img } = fxSample(W, H, cell, paint);
+  const d = img.data;
+  const drop = smooth(0.25, 1, a);
+  for (let j = 0; j < h; j++) {
+    for (let i = 0; i < w; i++) {
+      const o = (j * w + i) * 4 + 3;
+      if (!d[o]) continue;
+      // tepi kotak dibuat tegas supaya terasa piksel, bukan buram
+      d[o] = d[o] < 70 || hash3(i, j, seed) < drop ? 0 : 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(c, 0, 0, w * cell, h * cell);
   ctx.restore();
 }
 

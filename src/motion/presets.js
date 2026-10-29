@@ -1,5 +1,5 @@
 // Preset animasi masuk/keluar. apply(k, m): k = 0..1 (0 = belum muncul, 1 = tampil penuh),
-// m = pengubah yang dipakai engine: { opacity, dx, dy, scale, rotation, blur, reveal }.
+// m = pengubah yang dipakai engine: { opacity, dx, dy, scale, rotation, blur, reveal, fx }.
 // Animasi keluar memakai fungsi yang sama dengan k berjalan mundur.
 // Preset baru: tambahkan entri di sini, otomatis muncul di inspector.
 
@@ -23,7 +23,11 @@ export const PRESETS = {
   scatter: { label: 'Kata berserakan → tersusun (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'scatter', k }; } },
   typewriter: { label: 'Mesin ketik (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'chars', k }; } },
   // kata demi kata naik dari balik garis baris (tertutup topeng), seperti video promo produk
-  rise: { label: 'Naik per kata, bertopeng (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'rise', k }; } }
+  rise: { label: 'Naik per kata, bertopeng (teks)', textOnly: true, apply: (k, m) => { m.reveal = { mode: 'rise', k }; } },
+  // efek gambar (m.fx, a = 0 utuh → 1 hilang): engine menggambar layer di kanvas kecil lalu memecahnya.
+  // raster = ekspor After Effects merender layer ini jadi video (tidak bisa dibuat ulang di AE).
+  pixel: { label: 'Pecah jadi piksel', raster: true, linear: true, apply: (k, m) => { m.fx = { mode: 'pixel', a: 1 - k }; } },
+  ascii: { label: 'Larut jadi ASCII', raster: true, linear: true, apply: (k, m) => { m.fx = { mode: 'ascii', a: 1 - k }; } }
 };
 
 const easeOut = (x) => 1 - Math.pow(1 - x, 3);
@@ -33,7 +37,8 @@ export function applyAnim(anim, vt, len, m) {
   const a = anim?.in;
   if (a && a.preset !== 'none' && PRESETS[a.preset]?.apply && a.dur > 0) {
     const k = Math.min(1, Math.max(0, vt / a.dur));
-    if (k < 1 || PRESETS[a.preset].textOnly) PRESETS[a.preset].apply(PRESETS[a.preset].textOnly ? k : easeOut(k), m);
+    const raw = PRESETS[a.preset].textOnly || PRESETS[a.preset].linear;
+    if (k < 1 || PRESETS[a.preset].textOnly) PRESETS[a.preset].apply(raw ? k : easeOut(k), m);
   }
   const b = anim?.out;
   if (b && b.preset !== 'none' && PRESETS[b.preset]?.apply && b.dur > 0) {
@@ -42,7 +47,7 @@ export function applyAnim(anim, vt, len, m) {
       const k = Math.min(1, Math.max(0, left / b.dur));
       // teks per kata/mesin ketik saat keluar cukup memudar
       if (PRESETS[b.preset].textOnly) m.opacity *= k;
-      else PRESETS[b.preset].apply(easeOut(k), m);
+      else PRESETS[b.preset].apply(PRESETS[b.preset].linear ? k : easeOut(k), m);
     }
   }
   return m;

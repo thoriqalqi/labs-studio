@@ -78,6 +78,7 @@ export function classify(l) {
   if (l.type === 'sfx') return { kind: 'sfx' };
   if (!def.draw) return { kind: 'skip' };
   if (hasCrop(l)) return { kind: 'raster', why: 'crop' };
+  if (['in', 'out'].some((s) => PRESETS[l.anim?.[s]?.preset]?.raster)) return { kind: 'raster', why: 'efek piksel/ASCII' };
   const p = { ...def.defaults, ...l.props };
   const keyed = Object.keys(l.keys || {}).filter((k) => l.keys[k]?.length && !TRANSFORM_KEYS.has(k));
   switch (l.type) {

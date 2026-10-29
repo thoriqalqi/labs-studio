@@ -789,6 +789,8 @@ const WORDS = {
   'Warna gelembung kamu': 'Your bubble colour',
   'Mengetik dulu (dtk)': 'Typing first (s)',
   'Naik per kata, bertopeng (teks)': 'Masked rise per word (text)',
+  'Pecah jadi piksel': 'Break into pixels',
+  'Larut jadi ASCII': 'Dissolve into ASCII',
   'Kaca cair (liquid glass)': 'Liquid glass',
   'Warna 3': 'Colour 3',
   'Lapisan terang di latar (0–1)': 'Light veil over the background (0–1)',

@@ -46,7 +46,7 @@ Semua proyek, unggahan, dan hasil ekspor disimpan di folder ini (`motion/`, `epi
 - K menambah keyframe di playhead untuk semua properti yang beranimasi (layer yang belum beranimasi: cukup posisi). J / L lompat ke keyframe sebelum/berikutnya. U membuka baris properti layer terpilih.
 - **Kurva kustom:** klik dua kali ◆, atau tombol kurva di sebelah pilihan easing, untuk mengatur kurva bezier sendiri (ada preset Halus, Melambat, Antisipasi, Melampaui, dll.).
 
-**Teks:** kata di antara `*bintang*` memakai warna aksen, `[kata]` jadi pil bergaris, `{logo}` jadi ikon logo. Animasi khusus teks: per kata dan mesin ketik.
+**Teks:** kata di antara `*bintang*` memakai warna aksen, `[kata]` jadi pil bergaris, `{logo}` jadi ikon logo. Animasi khusus teks: per kata dan mesin ketik. Animasi masuk/keluar **Pecah jadi piksel** dan **Larut jadi ASCII** bisa dipakai di layer apa saja (cocok untuk teks yang berubah jadi objek).
 
 **Video:** impor atau seret file video (mp4, mov, mkv, webm) ke jendela editor motion. Gambarnya jadi layer **Video**, suaranya jadi layer **Audio** di bawahnya (volume bisa diatur terpisah). Format yang tidak bisa diputar browser otomatis dikonversi ke MP4.
 
