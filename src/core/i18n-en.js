@@ -87,6 +87,8 @@ const WORDS = {
   'Simpan frame': 'Save frame',
   'Menyiapkan aset…': 'Preparing assets…',
   'Menggabungkan video + audio…': 'Merging video + audio…',
+  'Ekspor belum dimulai atau sudah dibatalkan': 'Export not started or already cancelled',
+  'Audio ekspor tidak terkirim': 'Export audio was not received',
   'Proyek diperbarui dari luar editor · Ctrl+Z untuk membatalkan': 'Project updated from outside the editor · Ctrl+Z to undo',
 
   // ---------- panel tambah ----------

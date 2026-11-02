@@ -31,13 +31,40 @@ function readBody(req) {
 
 // ffmpeg wajib untuk ekspor & impor video. Kalau belum terpasang, server tetap jalan dan memberi pesan jelas.
 const FFMPEG_MISSING = 'ffmpeg tidak ditemukan. Pasang ffmpeg lalu pastikan ada di PATH (lihat README).';
-const hasFfmpeg = (() => {
+const ffmpegOk = () => {
   try {
     return spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' }).status === 0;
   } catch {
     return false;
   }
-})();
+};
+// Server bisa dinyalakan dari jendela/terminal yang PATH-nya kedaluwarsa (mis. ffmpeg baru dipasang,
+// atau dibuka dari aplikasi lain). Kalau ffmpeg tidak ketemu, baca PATH terbaru dari registry Windows
+// dan coba folder pemasangan umum, lalu tambahkan foldernya ke PATH proses ini.
+function findFfmpeg() {
+  if (ffmpegOk()) return true;
+  const dirs = [];
+  if (process.platform === 'win32') {
+    for (const key of ['HKCU\\Environment', 'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment']) {
+      try {
+        const out = spawnSync('reg', ['query', key, '/v', 'Path'], { encoding: 'utf8' }).stdout || '';
+        const m = out.match(/Path\s+REG_(?:EXPAND_)?SZ\s+(.*)/i);
+        if (m) dirs.push(...m[1].trim().replace(/%([^%]+)%/g, (_, v) => process.env[v] || '').split(';'));
+      } catch {}
+    }
+    const pf = [process.env.ProgramFiles, process.env.LOCALAPPDATA && `${process.env.LOCALAPPDATA}\\Microsoft\\WinGet\\Links`];
+    dirs.push(...['C:', 'D:', 'E:'].map((d) => `${d}\\ffmpeg\\bin`), ...pf.filter(Boolean).map((p) => p.endsWith('Links') ? p : `${p}\\ffmpeg\\bin`));
+  } else {
+    dirs.push('/opt/homebrew/bin', '/usr/local/bin', '/usr/bin');
+  }
+  const exe = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+  const dir = dirs.map((d) => d && d.trim()).find((d) => d && fs.existsSync(path.join(d, exe)));
+  if (!dir) return false;
+  process.env.PATH = `${dir}${path.delimiter}${process.env.PATH || ''}`;
+  console.log(`[Labs Studio] ffmpeg ditemukan di ${dir}`);
+  return ffmpegOk();
+}
+const hasFfmpeg = findFfmpeg();
 if (!hasFfmpeg) console.warn(`
 [Labs Studio] ${FFMPEG_MISSING} Editor tetap bisa dipakai, tapi ekspor MP4 & impor video belum bisa.
 `);
@@ -159,7 +186,18 @@ function docHandler(colFixed) {
 let broadcast = () => {};
 
 function studioPlugin() {
-  let job = null;
+  // ekspor yang sedang berjalan, per kunci job (beberapa ekspor boleh jalan bersamaan)
+  const jobs = new Map();
+  let lastJob = null;   // klien lama (editor chibi) tidak mengirim ?job=, pakai job terakhir
+  const dropJob = (key, files = true) => {
+    const j = jobs.get(key);
+    if (!j) return;
+    jobs.delete(key);
+    if (lastJob === key) lastJob = null;
+    try { j.ff?.kill(); } catch {}
+    try { j.stream?.destroy(); } catch {}
+    if (files) for (const f of [j.video, j.raw, j.audio]) if (f) fs.rmSync(f, { force: true });
+  };
 
   return {
     name: 'labs-studio',
@@ -605,20 +643,25 @@ function studioPlugin() {
             const cfg = JSON.parse(body.toString() || '{}');
             const name = safeId(cfg.name) || 'video';
             const fps = Math.max(1, Math.min(60, parseInt(cfg.fps, 10) || 30));
-            if (job?.ff) job.ff.kill();
-            job = {
-              fps,
-              mode: cfg.mode === 'h264' ? 'h264' : 'jpeg',
-              video: path.join(outDir, `${name}.video.${cfg.mode === 'h264' ? 'h264' : 'mp4'}`),
-              audio: path.join(outDir, `${name}.audio.wav`),
+            if (!hasFfmpeg) return json(res, 500, { error: FFMPEG_MISSING });
+            // proyek yang sama diekspor ulang: hentikan ekspor lamanya (file sementaranya sama)
+            for (const [k, j] of jobs) if (j.name === name) dropJob(k);
+            const key = `${name}-${Date.now().toString(36)}`;
+            const mode = cfg.mode === 'h264' ? 'h264' : 'jpeg';
+            const job = {
+              name, fps, mode,
+              video: path.join(outDir, `${key}.video.mp4`),
+              raw: mode === 'h264' ? path.join(outDir, `${key}.video.h264`) : null,
+              audio: path.join(outDir, `${key}.audio.wav`),
               final: path.join(outDir, `${name}.mp4`)
             };
-            if (job.mode === 'h264') {
+            jobs.set(key, job);
+            lastJob = key;
+            if (mode === 'h264') {
               // browser sudah meng-encode H.264 (WebCodecs); server cukup menyimpan stream-nya
-              job.stream = fs.createWriteStream(job.video);
-              return json(res, 200, { ok: true });
+              job.stream = fs.createWriteStream(job.raw);
+              return json(res, 200, { ok: true, job: key });
             }
-            if (!hasFfmpeg) return json(res, 500, { error: FFMPEG_MISSING });
             job.ff = spawn('ffmpeg', [
               '-y', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
               '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', job.video
@@ -626,9 +669,15 @@ function studioPlugin() {
             job.ff.stderr.on('data', () => {});
             job.ff.on('error', () => {});
             job.done = once(job.ff, 'close');
+            return json(res, 200, { ok: true, job: key });
+          }
+          const key = new URL(req.url, 'http://x').searchParams.get('job') || lastJob;
+          if (route === 'abort') {
+            if (key) dropJob(key);
             return json(res, 200, { ok: true });
           }
-          if (!job) return json(res, 400, { error: 'Ekspor belum dimulai' });
+          const job = key && jobs.get(key);
+          if (!job) return json(res, 400, { error: 'Ekspor belum dimulai atau sudah dibatalkan' });
           if (route === 'audio') {
             fs.writeFileSync(job.audio, body);
             return json(res, 200, { ok: true });
@@ -642,24 +691,22 @@ function studioPlugin() {
             return json(res, 200, { ok: true });
           }
           if (route === 'finish') {
-            if (job.mode === 'h264') {
-              job.stream.end();
-              await once(job.stream, 'finish');
-              // stream H.264 mentah belum punya timestamp: bungkus dulu ke MP4, baru digabung dengan audio
-              const raw = job.video;
-              job.video = raw.replace(/\.h264$/, '.mp4');
-              await run(['-y', '-framerate', String(job.fps), '-i', raw, '-c:v', 'copy', job.video]);
-              fs.rmSync(raw, { force: true });
-            } else {
-              job.ff.stdin.end();
-              await job.done;
+            try {
+              if (job.mode === 'h264') {
+                job.stream.end();
+                await once(job.stream, 'finish');
+                // stream H.264 mentah belum punya timestamp: bungkus dulu ke MP4, baru digabung dengan audio
+                await run(['-y', '-framerate', String(job.fps), '-i', job.raw, '-c:v', 'copy', job.video]);
+              } else {
+                job.ff.stdin.end();
+                await job.done;
+              }
+              if (!fs.existsSync(job.audio)) throw new Error('Audio ekspor tidak terkirim');
+              await run(['-y', '-i', job.video, '-i', job.audio, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', job.final]);
+              return json(res, 200, { ok: true, file: path.relative(process.cwd(), job.final) });
+            } finally {
+              dropJob(key);
             }
-            await run(['-y', '-i', job.video, '-i', job.audio, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', job.final]);
-            fs.rmSync(job.video, { force: true });
-            fs.rmSync(job.audio, { force: true });
-            const file = path.relative(process.cwd(), job.final);
-            job = null;
-            return json(res, 200, { ok: true, file });
           }
           return json(res, 404, { error: 'Tidak dikenal' });
         } catch (err) {
