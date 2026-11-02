@@ -19,7 +19,7 @@ const getDoc = async (id) => {
 
 // Tab beranda tidak memuat semua font editor. Sebelum render/ekspor, muat font yang dipakai dokumen
 // supaya hasilnya sama dengan di editor motion (tanpa ini teks jatuh ke font serif bawaan).
-const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Baloo+2:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Bebas+Neue&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=Playfair+Display:wght@700&family=Caveat:wght@600&family=Barlow+Condensed:wght@500;600;700&display=swap';
+const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Baloo+2:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Bebas+Neue&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=Playfair+Display:wght@700&family=Caveat:wght@600&family=Barlow+Condensed:wght@500;600;700&family=Archivo+Black&family=Montserrat:wght@400;500;600;700&display=swap';
 async function ensureFonts(doc) {
   if (!document.querySelector('link[href*="Baloo+2"]')) {
     const link = document.createElement('link');

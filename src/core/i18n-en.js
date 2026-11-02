@@ -335,6 +335,7 @@ const WORDS = {
   'Segitiga {logo}': '{logo} triangle',
   'Geist (bersih, modern)': 'Geist (clean, modern)',
   'Inter (rapi, netral)': 'Inter (tidy, neutral)',
+  'Archivo Black (judul sangat tebal)': 'Archivo Black (extra-bold headline)',
   'Inter (seperti referensi)': 'Inter (like the reference)',
   'Teks kaca (liquid glass)': 'Glass text (liquid glass)',
   'Warna bawah teks kaca': 'Glass text bottom color',
@@ -1083,7 +1084,13 @@ const WORDS = {
   'Transisi': 'Transitions',
   'Klik & UI': 'Clicks & UI',
   'Hantaman': 'Impacts',
-  'Ketik': 'Typing'
+  'Ketik': 'Typing',
+  'Riser': 'Risers',
+  'Stinger & Trailer': 'Stingers & Trailer',
+  'Drone & Suasana': 'Drones & Atmosphere',
+  'Mekanik & Jam': 'Mechanical & Clocks',
+  'Alam & Ruang': 'Nature & Rooms',
+  'Lain-lain': 'Miscellaneous'
 };
 
 // pola untuk teks berisi angka / nama (t = penerjemah, untuk bagian yang perlu diterjemahkan juga)

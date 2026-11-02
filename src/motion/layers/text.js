@@ -13,7 +13,9 @@ export const FONTS = {
   Poppins: 'Poppins',
   'Playfair Display': 'Playfair Display (serif)',
   Caveat: 'Caveat (tulisan tangan)',
-  'Barlow Condensed': 'Barlow Condensed (padat, ala kamera)'
+  'Barlow Condensed': 'Barlow Condensed (padat, ala kamera)',
+  'Archivo Black': 'Archivo Black (judul sangat tebal)',
+  Montserrat: 'Montserrat'
 };
 
 function tokens(text) {
